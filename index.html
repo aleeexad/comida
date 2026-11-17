@@ -429,18 +429,20 @@ aplicarTema();
 let docRef=null,loaded=false,editedEarly=false,saveT=null,saving=false,again=false;
 function setSync(kind,txt){const el=document.getElementById('sync');el.className='sync '+(kind||'');el.querySelector('span').textContent=txt}
 function persist(){
+  S._at=Date.now();
   try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
   if(!loaded){editedEarly=true;return}
   if(!docRef)return;
   clearTimeout(saveT);setSync('','Guardando…');saveT=setTimeout(flush,1000);
 }
 async function flush(){
+  saveT=null;
   if(!docRef)return;
   if(saving){again=true;return}
   saving=true;
-  try{await docRef.set({json:JSON.stringify(S),at:Date.now()});setSync('ok','Guardado')}
+  try{await docRef.set({json:JSON.stringify(S),at:S._at||Date.now()});setSync('ok','Guardado')}
   catch(e){
-    if(e&&e.code==='unavailable'){await new Promise(r=>setTimeout(r,800+Math.random()*800));try{await docRef.set({json:JSON.stringify(S),at:Date.now()});setSync('ok','Guardado')}catch(e2){setSync('err','Solo en este equipo')}}
+    if(e&&e.code==='unavailable'){await new Promise(r=>setTimeout(r,800+Math.random()*800));try{await docRef.set({json:JSON.stringify(S),at:S._at||Date.now()});setSync('ok','Guardado')}catch(e2){setSync('err','Solo en este equipo')}}
     else setSync('err','Solo en este equipo');
   }
   saving=false;if(again){again=false;flush()}
@@ -448,17 +450,52 @@ async function flush(){
 async function initCloud(){
   setSync('','Conectando…');
   try{
-    if(!window.claude||!window.claude.use){setSync('','Solo en este equipo');loaded=true;return}
-    const [db,user]=await Promise.all([window.claude.use('db'),window.claude.use('user')]);
-    const uid=user?await user.id():null;
-    if(!db||!uid){setSync('','Solo en este equipo');loaded=true;return}
-    docRef=db.doc('data/users/'+uid+'/estado_'+USER);
+    let ref=null;
+    if(SUPA.url){
+      if(!TOK){setSync('','Solo en este equipo');loaded=true;return}
+      ref=supaDoc();
+    }else{
+      if(!window.claude||!window.claude.use){setSync('','Solo en este equipo');loaded=true;return}
+      const [db,user]=await Promise.all([window.claude.use('db'),window.claude.use('user')]);
+      const u=user?await user.id():null;
+      if(!db||!u){setSync('','Solo en este equipo');loaded=true;return}
+      ref=db.doc('data/users/'+u+'/estado_'+USER);
+    }
+    docRef=ref;
     const timer=setTimeout(()=>setSync('err','Sin conexión'),10000);
     const snap=await docRef.get();clearTimeout(timer);
-    if(snap.exists&&!editedEarly){const d=snap.data();if(d&&d.json){try{S=merge(JSON.parse(d.json));try{localStorage.setItem(KEY,d.json)}catch(e){}}catch(e){}}}
-    loaded=true;setSync('ok','En la nube');aplicarTema();render();
-    if(editedEarly||!snap.exists)flush();
-  }catch(e){loaded=true;docRef=null;setSync('','Solo en este equipo')}
+    let usoRemoto=false;
+    if(snap.exists){
+      const d=snap.data();
+      if(d&&d.json){try{const rem=JSON.parse(d.json);if(!editedEarly&&(rem._at||0)>=(S._at||0)){S=merge(rem);usoRemoto=true;try{localStorage.setItem(KEY,d.json)}catch(e){}}}catch(e){}}
+    }
+    loaded=true;setSync('ok',SUPA.url?'Sincronizado':'En la nube');aplicarTema();render();
+    if(!snap.exists||!usoRemoto)flush();
+    startPoll();
+  }catch(e){
+    loaded=true;docRef=null;
+    if(e&&e.code==='auth'){salir();return}
+    setSync('','Solo en este equipo');
+  }
+}
+let pollT=null;
+function startPoll(){
+  if(pollT)return;
+  pollT=setInterval(()=>{if(!document.hidden)pull()},30000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)pull()});
+  window.addEventListener('online',pull);
+}
+// Trae los cambios hechos desde otro dispositivo (si son más nuevos que los locales)
+async function pull(){
+  if(!USER)return;
+  if(!docRef){if(SUPA.url&&TOK)initCloud();return}
+  const ae=document.activeElement;
+  if(saveT||saving||$('#modal').classList.contains('open')||(ae&&/INPUT|TEXTAREA|SELECT/.test(ae.tagName)))return;
+  try{
+    const snap=await docRef.get();if(!snap.exists)return;
+    const d=snap.data(),rem=JSON.parse(d.json);
+    if((rem._at||0)>(S._at||0)){S=merge(rem);try{localStorage.setItem(KEY,d.json)}catch(e){}aplicarTema();render();setSync('ok','Sincronizado')}
+  }catch(e){}
 }
 
 /* ===================== UTILIDADES ===================== */
@@ -1049,11 +1086,59 @@ function route(){
 window.addEventListener('hashchange',route);
 window.addEventListener('scroll',()=>$('#hdr').classList.toggle('scrolled',scrollY>4),{passive:true});
 
+/* ===================== NUBE (SUPABASE) ===================== */
+// Rellena url y key (clave pública "anon") para sincronizar entre dispositivos. Vacío = solo este dispositivo.
+const SUPA={url:'',key:''};
+const TOKKEY='comida-tok';
+let TOK=null;
+function loadTok(){try{const r=sessionStorage.getItem(TOKKEY)||localStorage.getItem(TOKKEY);TOK=r?JSON.parse(r):null}catch(e){TOK=null}}
+function guardaTok(t){TOK=t;try{const a=t.rem?localStorage:sessionStorage,b=t.rem?sessionStorage:localStorage;b.removeItem(TOKKEY);a.setItem(TOKKEY,JSON.stringify(t))}catch(e){}}
+function borraTok(){TOK=null;try{sessionStorage.removeItem(TOKKEY);localStorage.removeItem(TOKKEY)}catch(e){}}
+async function authFetch(grant,body){
+  try{return await fetch(SUPA.url+'/auth/v1/token?grant_type='+grant,{method:'POST',headers:{apikey:SUPA.key,'Content-Type':'application/json'},body:JSON.stringify(body)})}
+  catch(e){e.code='unavailable';throw e}
+}
+async function supaLogin(id,pw,rem){
+  const r=await authFetch('password',{email:USUARIOS[id].email,password:pw});
+  if(!r.ok)return false;
+  const j=await r.json();
+  guardaTok({id,rem,access:j.access_token,refresh:j.refresh_token,exp:Date.now()+Math.max(60,(j.expires_in||3600)-60)*1000,uid:j.user.id});
+  return true;
+}
+async function tokenValido(){
+  if(Date.now()<TOK.exp)return;
+  const r=await authFetch('refresh_token',{refresh_token:TOK.refresh});
+  if(!r.ok){const e=new Error('auth');e.code='auth';throw e}
+  const j=await r.json();
+  guardaTok(Object.assign({},TOK,{access:j.access_token,refresh:j.refresh_token,exp:Date.now()+Math.max(60,(j.expires_in||3600)-60)*1000}));
+}
+async function sbFetch(path,opt){
+  opt=opt||{};
+  if(!TOK){const e=new Error('auth');e.code='auth';throw e}
+  await tokenValido();
+  let r;
+  try{r=await fetch(SUPA.url+path,{method:opt.method||'GET',headers:Object.assign({apikey:SUPA.key,Authorization:'Bearer '+TOK.access,'Content-Type':'application/json'},opt.headers||{}),body:opt.body})}
+  catch(e){e.code='unavailable';throw e}
+  if(!r.ok){const e=new Error('http '+r.status);e.code=r.status===401?'auth':'http';throw e}
+  return r;
+}
+function supaDoc(){return{
+  async get(){
+    const r=await sbFetch('/rest/v1/estado?user_id=eq.'+TOK.uid+'&select=json,updated_at');
+    const a=await r.json();
+    if(!a.length)return{exists:false};
+    return{exists:true,data:()=>({json:a[0].json,at:a[0].updated_at})};
+  },
+  async set(o){
+    await sbFetch('/rest/v1/estado',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({user_id:TOK.uid,json:o.json,updated_at:new Date().toISOString()})});
+  }
+}}
+
 /* ===================== USUARIOS / LOGIN ===================== */
 // Contraseñas guardadas solo como hash SHA-256 con sal (usuario). Ojo: es una puerta básica del lado del navegador, no seguridad real.
 const USUARIOS={
-  alejandro:{n:'Alejandro',h:'58c2791ddfcf5e823736b11d3c7a6e3383e191acad1a961fe8ee65b67a3c2542'},
-  fernanda:{n:'Fernanda',h:'dc1495239defe7d7acee3ef9b7bd74e7a04a582c4c2056912f8fb7580245cfb8'},
+  alejandro:{n:'Alejandro',email:'alejandro.comida@example.com',h:'58c2791ddfcf5e823736b11d3c7a6e3383e191acad1a961fe8ee65b67a3c2542'},
+  fernanda:{n:'Fernanda',email:'fernanda.comida@example.com',h:'dc1495239defe7d7acee3ef9b7bd74e7a04a582c4c2056912f8fb7580245cfb8'},
 };
 function sha256(ascii){
   function rr(v,a){return(v>>>a)|(v<<(32-a))}
@@ -1074,7 +1159,10 @@ function sha256(ascii){
 }
 const hashPw=(id,pw)=>sha256(unescape(encodeURIComponent('comida|'+id+'|'+pw)));
 const SESKEY='comida-sesion';
-function getSesion(){try{const id=sessionStorage.getItem(SESKEY)||localStorage.getItem(SESKEY);return USUARIOS[id]?id:null}catch(e){return null}}
+function getSesion(){
+  if(SUPA.url){loadTok();return TOK&&USUARIOS[TOK.id]?TOK.id:null}
+  try{const id=sessionStorage.getItem(SESKEY)||localStorage.getItem(SESKEY);return USUARIOS[id]?id:null}catch(e){return null}
+}
 function entrar(id,recordar){
   USER=id;KEY=KEY0+':'+id;
   try{sessionStorage.removeItem(SESKEY);localStorage.removeItem(SESKEY);(recordar?localStorage:sessionStorage).setItem(SESKEY,id)}catch(e){}
@@ -1091,6 +1179,7 @@ function entrar(id,recordar){
 }
 function salir(){
   try{sessionStorage.removeItem(SESKEY);localStorage.removeItem(SESKEY)}catch(e){}
+  borraTok();
   location.hash='';location.reload();
 }
 let loginUser=null,loginFails=0;
@@ -1102,17 +1191,23 @@ function mostrarLogin(){
   $('#login').classList.add('open');
 }
 $('#users').addEventListener('click',e=>{const b=e.target.closest('[data-u]');if(!b)return;loginUser=b.dataset.u;pintaUsuarios();$('#lErr').textContent='';$('#lPass').focus()});
-$('#fLogin').addEventListener('submit',e=>{
+$('#fLogin').addEventListener('submit',async e=>{
   e.preventDefault();
-  const err=$('#lErr');
+  const err=$('#lErr'),btn=$('#lBtn'),rec=$('#lRec').checked,pw=$('#lPass').value;
   if(!loginUser){err.textContent='Elige primero tu usuario';return}
-  if(hashPw(loginUser,$('#lPass').value)===USUARIOS[loginUser].h){loginFails=0;entrar(loginUser,$('#lRec').checked)}
+  let ok=false;
+  if(SUPA.url){
+    btn.disabled=true;err.textContent='Entrando…';
+    try{ok=await supaLogin(loginUser,pw,rec)}catch(x){err.textContent='Sin conexión. Intenta de nuevo.';btn.disabled=false;return}
+    btn.disabled=false;
+  }else ok=hashPw(loginUser,pw)===USUARIOS[loginUser].h;
+  if(ok){loginFails=0;entrar(loginUser,rec)}
   else{
     loginFails++;err.textContent='Contraseña incorrecta';$('#lPass').value='';
-    const b=$('#lBtn');b.disabled=true;setTimeout(()=>{b.disabled=false},Math.min(8000,loginFails*1000));
+    btn.disabled=true;setTimeout(()=>{btn.disabled=false},Math.min(8000,loginFails*1000));
   }
 });
-function iniciar(){const id=getSesion();if(id)entrar(id,!!localStorage.getItem(SESKEY));else mostrarLogin()}
+function iniciar(){const id=getSesion();if(id)entrar(id,SUPA.url?!!TOK.rem:!!localStorage.getItem(SESKEY));else mostrarLogin()}
 iniciar();
 </script>
 </body>
