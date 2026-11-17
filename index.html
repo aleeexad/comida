@@ -430,19 +430,44 @@ let docRef=null,loaded=false,editedEarly=false,saveT=null,saving=false,again=fal
 function setSync(kind,txt){const el=document.getElementById('sync');el.className='sync '+(kind||'');el.querySelector('span').textContent=txt}
 function persist(){
   S._at=Date.now();
+  try{localStorage.setItem('comida-pref:'+USER,JSON.stringify({tema:S.tema,opac:S.opac,acento:S.acento}))}catch(e){}
   try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
   if(!loaded){editedEarly=true;return}
   if(!docRef)return;
   clearTimeout(saveT);setSync('','Guardando…');saveT=setTimeout(flush,1000);
 }
+let baseAt=0;
+// Une cambios de dos personas: listas por id (gana lo local), pagos por clave; el resto lo local.
+function fusion(loc,rem){
+  const out=Object.assign({},rem,loc);
+  const uni=(a,b)=>{const m=new Map();(b||[]).forEach(x=>m.set(x.id,x));(a||[]).forEach(x=>m.set(x.id,x));return [...m.values()]};
+  out.gastos=uni(loc.gastos,rem.gastos);
+  out.lista=uni(loc.lista,rem.lista);
+  const fm=new Map();(rem.fijos||[]).forEach(f=>fm.set(f.id,f));
+  (loc.fijos||[]).forEach(f=>{const r=fm.get(f.id);fm.set(f.id,r?Object.assign({},r,f,{pagos:Object.assign({},r.pagos,f.pagos)}):f)});
+  out.fijos=[...fm.values()];
+  return out;
+}
+function aplicaPref(){
+  try{const r=localStorage.getItem('comida-pref:'+USER);if(r){const o=JSON.parse(r);if(o.tema)S.tema=o.tema;if(o.opac)S.opac=o.opac;S.acento=o.acento||null}}catch(e){}
+}
+const enFoco=()=>{const ae=document.activeElement;return !!(ae&&/INPUT|TEXTAREA|SELECT/.test(ae.tagName))};
 async function flush(){
   saveT=null;
   if(!docRef)return;
   if(saving){again=true;return}
   saving=true;
-  try{await docRef.set({json:JSON.stringify(S),at:S._at||Date.now()});setSync('ok','Guardado')}
+  const envia=async()=>{
+    if(SUPA.url){
+      const snap=await docRef.get();
+      if(snap.exists){try{const rem=JSON.parse(snap.data().json);if((rem._at||0)>baseAt){S=fusion(S,rem);S._at=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}if(!enFoco())render()}}catch(e){}}
+    }
+    await docRef.set({json:JSON.stringify(S),at:S._at||Date.now()});
+    baseAt=S._at||baseAt;
+  };
+  try{await envia();setSync('ok','Guardado')}
   catch(e){
-    if(e&&e.code==='unavailable'){await new Promise(r=>setTimeout(r,800+Math.random()*800));try{await docRef.set({json:JSON.stringify(S),at:S._at||Date.now()});setSync('ok','Guardado')}catch(e2){setSync('err','Solo en este equipo')}}
+    if(e&&e.code==='unavailable'){await new Promise(r=>setTimeout(r,800+Math.random()*800));try{await envia();setSync('ok','Guardado')}catch(e2){setSync('err','Solo en este equipo')}}
     else setSync('err','Solo en este equipo');
   }
   saving=false;if(again){again=false;flush()}
@@ -463,12 +488,19 @@ async function initCloud(){
     }
     docRef=ref;
     const timer=setTimeout(()=>setSync('err','Sin conexión'),10000);
-    const snap=await docRef.get();clearTimeout(timer);
+    let snap=await docRef.get();clearTimeout(timer);
     let usoRemoto=false;
+    if(!snap.exists&&ref.legacy){const lg=await ref.legacy();if(lg&&lg.exists)snap=lg}   // datos anteriores de este usuario
     if(snap.exists){
       const d=snap.data();
-      if(d&&d.json){try{const rem=JSON.parse(d.json);if(!editedEarly&&(rem._at||0)>=(S._at||0)){S=merge(rem);usoRemoto=true;try{localStorage.setItem(KEY,d.json)}catch(e){}}}catch(e){}}
+      if(d&&d.json){try{
+        const rem=JSON.parse(d.json);
+        baseAt=Math.max(baseAt,rem._at||0);
+        if(seeded){S=fusion(rem,S);S._at=Date.now();usoRemoto=false}      // datos locales viejos: se suman, mandan los compartidos
+        else if(!editedEarly&&(rem._at||0)>=(S._at||0)){S=merge(rem);usoRemoto=true;try{localStorage.setItem(KEY,d.json)}catch(e){}}
+      }catch(e){}}
     }
+    seeded=false;aplicaPref();
     loaded=true;setSync('ok',SUPA.url?'Sincronizado':'En la nube');aplicarTema();render();
     if(!snap.exists||!usoRemoto)flush();
     startPoll();
@@ -489,12 +521,11 @@ function startPoll(){
 async function pull(){
   if(!USER)return;
   if(!docRef){if(SUPA.url&&TOK)initCloud();return}
-  const ae=document.activeElement;
-  if(saveT||saving||$('#modal').classList.contains('open')||(ae&&/INPUT|TEXTAREA|SELECT/.test(ae.tagName)))return;
+  if(saveT||saving||$('#modal').classList.contains('open')||enFoco())return;
   try{
     const snap=await docRef.get();if(!snap.exists)return;
     const d=snap.data(),rem=JSON.parse(d.json);
-    if((rem._at||0)>(S._at||0)){S=merge(rem);try{localStorage.setItem(KEY,d.json)}catch(e){}aplicarTema();render();setSync('ok','Sincronizado')}
+    if((rem._at||0)>(S._at||0)){S=merge(rem);baseAt=rem._at||baseAt;aplicaPref();try{localStorage.setItem(KEY,d.json)}catch(e){}aplicarTema();render();setSync('ok','Sincronizado')}
   }catch(e){}
 }
 
@@ -883,7 +914,7 @@ function vAjustes(){
   </div>
   <div class="sec-title"><h2>Respaldo</h2></div>
   <div class="card">
-    <p class="small muted" style="margin-top:0">Tus datos se guardan en tu cuenta de Claude y se ven en cualquier dispositivo donde abras esta página. Puedes copiar un respaldo por si acaso.</p>
+    <p class="small muted" style="margin-top:0">Los datos son compartidos: Alejandro y Fernanda ven y editan lo mismo, en cualquier dispositivo. El tema y los colores son personales. Puedes copiar un respaldo por si acaso.</p>
     <div class="btns"><button class="btn sm alt" data-act="copiar">Copiar respaldo</button><button class="btn sm alt" data-act="importar">Restaurar</button></div>
     <button class="btn sm alt block" style="margin-top:8px;color:var(--tomato)" data-act="borrarTodo">Borrar todos mis datos</button>
   </div>`;
@@ -1124,13 +1155,18 @@ async function sbFetch(path,opt){
 }
 function supaDoc(){return{
   async get(){
-    const r=await sbFetch('/rest/v1/estado?user_id=eq.'+TOK.uid+'&select=json,updated_at');
+    const r=await sbFetch('/rest/v1/hogar?id=eq.hogar&select=json,updated_at');
     const a=await r.json();
     if(!a.length)return{exists:false};
     return{exists:true,data:()=>({json:a[0].json,at:a[0].updated_at})};
   },
   async set(o){
-    await sbFetch('/rest/v1/estado',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({user_id:TOK.uid,json:o.json,updated_at:new Date().toISOString()})});
+    await sbFetch('/rest/v1/hogar',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({id:'hogar',json:o.json,updated_at:new Date().toISOString()})});
+  },
+  // datos que cada usuario tenía guardados por separado antes de compartir
+  async legacy(){
+    try{const r=await sbFetch('/rest/v1/estado?user_id=eq.'+TOK.uid+'&select=json');const a=await r.json();
+      return a.length?{exists:true,data:()=>({json:a[0].json})}:{exists:false}}catch(e){return{exists:false}}
   }
 }}
 
@@ -1145,16 +1181,21 @@ function getSesion(){
   if(SUPA.url){loadTok();return TOK&&USUARIOS[TOK.id]?TOK.id:null}
   try{const id=sessionStorage.getItem(SESKEY)||localStorage.getItem(SESKEY);return USUARIOS[id]?id:null}catch(e){return null}
 }
+let seeded=false;
 function entrar(id,recordar){
-  USER=id;KEY=KEY0+':'+id;
+  USER=id;KEY=SUPA.url?KEY0+':hogar':KEY0+':'+id;
   try{sessionStorage.removeItem(SESKEY);localStorage.removeItem(SESKEY);(recordar?localStorage:sessionStorage).setItem(SESKEY,id)}catch(e){}
-  S=defState();let raw=null;
+  S=defState();let raw=null;seeded=false;
   try{
     raw=localStorage.getItem(KEY);
-    if(!raw&&!localStorage.getItem(KEY0+':migrado')){const leg=localStorage.getItem(KEY0);if(leg){raw=leg;localStorage.setItem(KEY0+':migrado',id)}}
+    if(!raw){   // primera vez en este dispositivo: aprovecha lo que hubiera guardado antes
+      const leg=localStorage.getItem(KEY0+':'+id)||localStorage.getItem(KEY0);
+      if(leg){raw=leg;seeded=!!SUPA.url}
+    }
   }catch(e){}
   if(raw){try{S=merge(JSON.parse(raw));localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
-  loaded=false;editedEarly=false;docRef=null;
+  aplicaPref();
+  loaded=false;editedEarly=false;docRef=null;baseAt=0;
   $('#login').classList.remove('open');
   mesVista=hoy().slice(0,7);mesFijos=mesVista;
   aplicarTema();route();initCloud();
