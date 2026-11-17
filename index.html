@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Comida · Gastos, menú y lista</title>
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Comida">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#D9472B">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&family=Inter:wght@400;500;600&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
 <style>
@@ -532,9 +540,9 @@ function vInicio(){
     <button class="btn sm alt" data-act="listaDesdeMenu">Generar desde menú</button>
   </div>
 
-  ${(()=>{const mf=hoy().slice(0,7),pf=S.fijos.filter(f=>!(f.pagos&&f.pagos[mf])),tp=pf.reduce((s,f)=>s+(+f.monto||0),0);
+  ${(()=>{const pf=ocurrencias(hoy().slice(0,7)).filter(o=>!o.pagado),tp=pf.reduce((x,o)=>x+o.monto,0);
     return `<div class="sec-title"><h2>Pagos del mes</h2><a class="small ext" href="#fijos">Ver</a></div>
-    <div class="card row between"><div><b>${pf.length}</b> <span class="muted">por pagar</span><div class="small muted">${pf.length?money(tp)+' pendientes':'Todo pagado 🎉'}</div></div><button class="btn sm alt" data-go="fijos">Gastos mensuales</button></div>`})()}
+    <div class="card row between"><div><b>${pf.length}</b> <span class="muted">por pagar</span><div class="small muted">${pf.length?money(tp)+' pendientes':'Todo pagado 🎉'}</div></div><button class="btn sm alt" data-go="fijos">Gastos fijos</button></div>`})()}
 
   <div class="sec-title"><h2>En qué se va</h2></div>
   <div class="card">
@@ -624,12 +632,12 @@ function vLista(){
 function mesesConDatos(){
   const set=new Set([hoy().slice(0,7)]);
   S.gastos.forEach(g=>set.add(mesKey(g.fecha)));
-  S.fijos.forEach(f=>Object.keys(f.pagos||{}).forEach(m=>set.add(m)));
+  S.fijos.forEach(f=>Object.keys(f.pagos||{}).forEach(k=>set.add(monthOfKey(k))));
   return [...set].sort().reverse();
 }
 function datosMes(m){
   const comida=gastosMes(m).reduce((s,g)=>s+(+g.monto||0),0);
-  const fijos=S.fijos.filter(f=>pagadoF(f,m)).reduce((s,f)=>s+montoPagado(f,m),0);
+  const fijos=S.fijos.reduce((t,f)=>t+Object.keys(f.pagos||{}).filter(k=>monthOfKey(k)===m).reduce((x,k)=>x+montoPagado(f,k),0),0);
   return {comida,fijos,total:comida+fijos};
 }
 function vHistorial(){
@@ -655,7 +663,7 @@ function descargarCSV(){
   const L=[['usuario','tipo','fecha_o_mes','concepto','categoria','monto']];
   const u=(USUARIOS[USER]||{}).n||'';
   S.gastos.slice().sort((a,b)=>a.fecha.localeCompare(b.fecha)).forEach(g=>L.push([u,'comida',g.fecha,g.tienda||'',(CATS[g.cat]||CATS.otros)[1],g.monto]));
-  S.fijos.forEach(f=>Object.keys(f.pagos||{}).sort().forEach(m=>L.push([u,'fijo',m,f.n,'Fijo',montoPagado(f,m)])));
+  S.fijos.forEach(f=>Object.keys(f.pagos||{}).sort().forEach(k=>L.push([u,'fijo',k[0]==='w'?k.slice(1):k,f.n,f.frec==='sem'?'Fijo semanal':'Fijo mensual',montoPagado(f,k)])));
   const blob=new Blob(['\ufeff'+L.map(r=>r.map(q).join(',')).join('\n')],{type:'text/csv;charset=utf-8'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='gastos-'+(USER||'comida')+'.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000);
 }
@@ -690,24 +698,60 @@ function vGastos(){
 
 
 let mesFijos=hoy().slice(0,7);
-const EMS_FIJO=['🌐','🔥','💡','💧','📱','🏠','📺','🚌','🎓','💊','🛡️','🐶','🎮','🧾'];
-function pagadoF(f,m){return !!(f.pagos&&f.pagos[m]!=null)}
-function montoPagado(f,m){const v=f.pagos&&f.pagos[m];return typeof v==='number'?v:(v?(+f.monto||0):0)}
-function badgeFijo(f,m){
-  if(pagadoF(f,m))return '<span class="badge ok">Pagado</span>';
-  const hm=hoy().slice(0,7);
-  if(m<hm)return '<span class="badge">Sin pagar</span>';
-  if(m>hm)return `<span class="badge warn">Día ${f.dia}</span>`;
-  const d=(+f.dia||1)-new Date().getDate();
-  if(d<0)return '<span class="badge">Vencido</span>';
-  if(d===0)return '<span class="badge">Hoy</span>';
+const EMS_FIJO=['🌐','🔥','💡','💧','📱','🏠','📺','🚌','🎓','💊','🛡️','🐶','🎮','🛒','🧾'];
+const DOW=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+const MESC=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+function pagadoF(f,key){return !!(f.pagos&&f.pagos[key]!=null)}
+function montoPagado(f,key){const v=f.pagos&&f.pagos[key];return typeof v==='number'?v:(v?(+f.monto||0):0)}
+function monthOfKey(k){return k[0]==='w'?k.slice(1,8):k}
+function diasMes(m){const [y,mo]=m.split('-').map(Number);return new Date(y,mo,0).getDate()}
+// Cada pago concreto del mes: los mensuales una vez, los semanales una por cada semana (su día cae en el mes).
+function ocurrencias(m){
+  const [y,mo]=m.split('-').map(Number),dim=diasMes(m),out=[];
+  S.fijos.forEach(f=>{
+    if(f.frec==='sem'){
+      for(let d=1;d<=dim;d++){const dt=new Date(y,mo-1,d);if(dt.getDay()===(+f.dow||0)){const iso=isoDate(dt);out.push({f,fecha:iso,key:'w'+iso})}}
+    }else{
+      const d=Math.min(dim,Math.max(1,+f.dia||1));out.push({f,fecha:m+'-'+pad(d),key:m});
+    }
+  });
+  out.sort((a,b)=>a.fecha.localeCompare(b.fecha)||a.f.n.localeCompare(b.f.n));
+  out.forEach(o=>{o.pagado=pagadoF(o.f,o.key);o.monto=o.pagado?montoPagado(o.f,o.key):(+o.f.monto||0)});
+  return out;
+}
+function semanasDelMes(m){
+  const [y,mo]=m.split('-').map(Number),dim=diasMes(m),out=[];
+  const first=new Date(y,mo-1,1),last=new Date(y,mo-1,dim);
+  let ws=new Date(first);ws.setDate(ws.getDate()-((ws.getDay()+6)%7));
+  while(ws<=last){
+    const a=new Date(Math.max(ws,first)),we=new Date(ws);we.setDate(we.getDate()+6);const b=new Date(Math.min(we,last));
+    out.push({ini:isoDate(a),fin:isoDate(b),dias:Math.round((b-a)/864e5)+1});
+    ws=new Date(ws);ws.setDate(ws.getDate()+7);
+  }
+  return out;
+}
+const fechaCorta=iso=>{const d=new Date(iso+'T12:00');return d.getDate()+' '+MESC[d.getMonth()]};
+function badgeOc(o){
+  if(o.pagado)return '<span class="badge ok">Pagado</span>';
+  const h=hoy();
+  if(o.fecha<h)return '<span class="badge">Vencido</span>';
+  if(o.fecha===h)return '<span class="badge">Hoy</span>';
+  const d=Math.round((new Date(o.fecha+'T12:00')-new Date(h+'T12:00'))/864e5);
   if(d<=3)return `<span class="badge warn">En ${d} día${d>1?'s':''}</span>`;
-  return `<span class="badge warn">Día ${f.dia}</span>`;
+  return '<span class="badge warn">'+fechaCorta(o.fecha)+'</span>';
+}
+function filaOc(o){
+  const f=o.f,sem=f.frec==='sem';
+  return `<div class="gasto"><input type="checkbox" class="check" data-act="togglePago" data-id="${f.id}" data-key="${o.key}" ${o.pagado?'checked':''} aria-label="Marcar ${esc(f.n)} como pagado">
+    <button class="fx" data-act="editFijo" data-id="${f.id}"><b>${esc(f.em||'🧾')} ${esc(f.n)}</b><div class="small muted">${sem?'Semanal · '+DOW[+f.dow||0]+' '+fechaCorta(o.fecha):'Mensual · '+fechaCorta(o.fecha)}</div></button>
+    <div style="text-align:right"><b>${fmt2.format(o.monto)}</b><div>${badgeOc(o)}</div></div></div>`;
 }
 function vFijos(){
-  const m=mesFijos,fs=S.fijos.slice().sort((a,b)=>(+a.dia||0)-(+b.dia||0));
-  const total=fs.reduce((s,f)=>s+(pagadoF(f,m)?montoPagado(f,m):(+f.monto||0)),0),pagado=fs.filter(f=>pagadoF(f,m)).reduce((s,f)=>s+montoPagado(f,m),0);
+  const m=mesFijos,oc=ocurrencias(m),dim=diasMes(m);
+  const total=oc.reduce((s,o)=>s+o.monto,0),pagado=oc.filter(o=>o.pagado).reduce((s,o)=>s+o.monto,0);
   const pend=total-pagado,pct=total?pagado/total*100:0,comida=+S.presupuesto||0;
+  const semanas=semanasDelMes(m);
+  const semTotal=oc.filter(o=>o.f.frec==='sem').reduce((s,o)=>s+o.monto,0),menTotal=total-semTotal;
   return `
   <div class="card">
     <div class="row between">
@@ -721,41 +765,54 @@ function vFijos(){
       <div class="stat"><span class="tiny muted">Por pagar</span><b style="color:${pend>0?'var(--tomato)':'inherit'}">${money(pend)}</b></div>
     </div>
     <div class="bar"><div style="width:${Math.min(100,pct)}%"></div></div>
-    <button class="btn block red" data-act="nuevoFijo">+ Agregar gasto mensual</button>
+    <div class="small muted">Mensuales ${money(menTotal)} · Semanales ${money(semTotal)}</div>
+    <button class="btn block red" style="margin-top:12px" data-act="nuevoFijo">+ Agregar gasto</button>
   </div>
-  <div class="card" style="padding:6px 14px">
-    ${fs.length?fs.map(f=>`
-      <div class="gasto"><input type="checkbox" class="check" data-act="togglePago" data-id="${f.id}" ${pagadoF(f,m)?'checked':''} aria-label="Marcar ${esc(f.n)} como pagado">
-        <button class="fx" data-act="editFijo" data-id="${f.id}"><b>${esc(f.em||'🧾')} ${esc(f.n)}</b><div class="small muted">Se paga el día ${f.dia} de cada mes</div></button>
-        <div style="text-align:right"><b>${fmt2.format(+f.monto||0)}</b><div>${badgeFijo(f,m)}</div></div></div>`).join('')
-    :`<div class="empty-state"><div class="em">🧾</div><p>Agrega tus pagos de cada mes: internet, gas, luz…</p></div>`}
-  </div>
+  ${S.fijos.length?semanas.map((w,i)=>{
+    const ocs=oc.filter(o=>o.fecha>=w.ini&&o.fecha<=w.fin),fijos=ocs.reduce((s,o)=>s+o.monto,0);
+    const presC=comida*w.dias/dim,gastC=S.gastos.filter(g=>g.fecha>=w.ini&&g.fecha<=w.fin).reduce((s,g)=>s+(+g.monto||0),0);
+    const pc=presC?gastC/presC*100:0,esActual=hoy()>=w.ini&&hoy()<=w.fin;
+    return `<div class="card ${esActual?'day today':''}">
+      <div class="row between"><h3 style="font-size:16px">Semana ${i+1} ${esActual?'<span class="badge">Esta semana</span>':''}</h3><span class="small muted">${fechaCorta(w.ini)} – ${fechaCorta(w.fin)}</span></div>
+      ${ocs.length?ocs.map(filaOc).join(''):'<div class="small muted" style="padding:10px 0">Sin pagos fijos esta semana.</div>'}
+      <div style="margin-top:6px;padding-top:8px;border-top:1px solid var(--line)">
+        <div class="row between small"><span class="muted">🍽️ Comida · presupuesto ${money(presC)}</span><span>gastado ${money(gastC)}</span></div>
+        <div class="bar ${pc>100?'over':pc>85?'warn':''}" style="margin:6px 0 8px"><div style="width:${Math.min(100,pc)}%"></div></div>
+        <div class="row between"><b>Total de la semana</b><b>${money(fijos+presC)}</b></div>
+        <div class="tiny muted">Fijos ${money(fijos)} + comida ${money(presC)}</div>
+      </div></div>`}).join('')
+  :`<div class="card empty-state"><div class="em">🧾</div><p>Agrega tus pagos: internet, gas, luz, despensa semanal…</p></div>`}
   <div class="card">
-    <div class="row between"><span class="muted">Comida (presupuesto)</span><b>${money(comida)}</b></div>
-    <div class="row between" style="margin-top:6px"><span class="muted">Gastos fijos</span><b>${money(total)}</b></div>
+    <div class="row between"><span class="muted">Comida (presupuesto del mes)</span><b>${money(comida)}</b></div>
+    <div class="row between" style="margin-top:6px"><span class="muted">Gastos fijos del mes</span><b>${money(total)}</b></div>
     <div class="row between" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)"><b>Total planeado del mes</b><b style="font-size:18px">${money(comida+total)}</b></div>
-    <p class="small muted" style="margin:10px 0 0">Los gastos fijos van aparte del presupuesto de comida. Marca la casilla cuando pagues cada uno; se reinicia cada mes.</p>
+    <p class="small muted" style="margin:10px 0 0">El presupuesto de comida se reparte entre las semanas según sus días del mes. Los gastos semanales se repiten cada semana y se cuentan en el total mensual. Marca la casilla al pagar.</p>
   </div>`;
 }
 function modalFijo(id){
-  const f=id?S.fijos.find(x=>x.id===id):null;
-  openModal(`<h2>${f?'Editar gasto mensual':'Nuevo gasto mensual'}</h2>
+  const f=id?S.fijos.find(x=>x.id===id):null,sem=f&&f.frec==='sem';
+  openModal(`<h2>${f?'Editar gasto fijo':'Nuevo gasto fijo'}</h2>
   <form id="fFijo">
     <label class="field"><span>Nombre</span><input name="n" required placeholder="Ej. Internet" value="${esc(f?f.n:'')}"></label>
     <div class="grid2">
-      <label class="field"><span>Monto (MXN)</span><input type="number" inputmode="decimal" step="0.01" min="0" name="monto" required value="${f?f.monto:''}" placeholder="500"></label>
-      <label class="field"><span>Día de pago (1-31)</span><input type="number" inputmode="numeric" min="1" max="31" name="dia" required value="${f?f.dia:1}"></label>
+      <label class="field"><span>Se repite</span><select name="frec"><option value="mes" ${sem?'':'selected'}>Cada mes</option><option value="sem" ${sem?'selected':''}>Cada semana</option></select></label>
+      <label class="field"><span>Monto por pago (MXN)</span><input type="number" inputmode="decimal" step="0.01" min="0" name="monto" required value="${f?f.monto:''}" placeholder="500"></label>
     </div>
+    <label class="field" id="fDia" ${sem?'hidden':''}><span>Día del mes (1-31)</span><input type="number" inputmode="numeric" min="1" max="31" name="dia" value="${f&&f.dia?f.dia:1}"></label>
+    <label class="field" id="fDow" ${sem?'':'hidden'}><span>Día de la semana</span><select name="dow">${[1,2,3,4,5,6,0].map(d=>`<option value="${d}" ${(f&&f.dow!=null?+f.dow:1)===d?'selected':''}>${DOW[d]}</option>`).join('')}</select></label>
     <div class="field" style="margin-bottom:0"><span>Icono</span></div>
     <div class="emopick">${EMS_FIJO.map((e,i)=>`<label><input type="radio" name="em" value="${e}" ${(f?f.em===e:i===0)?'checked':''}><span>${e}</span></label>`).join('')}</div>
     <div class="btns">${f?'<button type="button" class="btn alt" style="color:var(--tomato)" data-act="delFijo" data-id="'+f.id+'">Borrar</button>':''}<button type="button" class="btn alt" data-act="close">Cancelar</button><button class="btn red">Guardar</button></div>
   </form>`);
+  const fr=$('#fFijo [name=frec]');
+  fr.onchange=()=>{const w=fr.value==='sem';$('#fDia').hidden=w;$('#fDow').hidden=!w};
   $('#fFijo').onsubmit=e=>{
     e.preventDefault();const d=new FormData(e.target);
-    const n=(d.get('n')||'').trim(),monto=parseFloat(d.get('monto')),dia=Math.min(31,Math.max(1,Math.round(+d.get('dia')||1)));
+    const n=(d.get('n')||'').trim(),monto=parseFloat(d.get('monto')),frec=d.get('frec')==='sem'?'sem':'mes';
+    const dia=Math.min(31,Math.max(1,Math.round(+d.get('dia')||1))),dow=+d.get('dow')||0;
     if(!n||!(monto>=0))return;
-    if(f){Object.assign(f,{n,monto,dia,em:d.get('em')})}
-    else S.fijos.push({id:uid(),n,monto,dia,em:d.get('em')||'🧾',pagos:{}});
+    if(f){Object.assign(f,{n,monto,frec,dia,dow,em:d.get('em')})}
+    else S.fijos.push({id:uid(),n,monto,frec,dia,dow,em:d.get('em')||'🧾',pagos:{}});
     persist();closeModal();render();toast('Guardado');
   };
 }
@@ -939,7 +996,7 @@ document.addEventListener('click',e=>{
     case 'nuevoFijo':modalFijo();break;
     case 'editFijo':modalFijo(id);break;
     case 'delFijo':confirmar('¿Borrar este gasto mensual?','Se quitará de tu planeación.','Borrar',()=>{S.fijos=S.fijos.filter(x=>x.id!==id);persist();render()});break;
-    case 'togglePago':{const f=S.fijos.find(x=>x.id===id);if(f){f.pagos=f.pagos||{};if(el.checked)f.pagos[mesFijos]=+f.monto||0;else delete f.pagos[mesFijos];persist();render()}break}
+    case 'togglePago':{const f=S.fijos.find(x=>x.id===id);if(f){f.pagos=f.pagos||{};const k=el.dataset.key||mesFijos;if(el.checked)f.pagos[k]=+f.monto||0;else delete f.pagos[k];persist();render()}break}
     case 'mesF':{const [y,mo]=mesFijos.split('-').map(Number);const d=new Date(y,mo-1+(+el.dataset.d),1);mesFijos=d.getFullYear()+'-'+pad(d.getMonth()+1);render();break}
     case 'nuevoGasto':modalGasto();break;
     case 'editPres':location.hash='#ajustes';break;
