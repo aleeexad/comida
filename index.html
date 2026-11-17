@@ -212,6 +212,27 @@ html[data-theme=minecraft] nav a{font-size:14px}
 html[data-theme=minecraft] .check{border:2px solid #000;background:#8b8b8b}
 html[data-theme=minecraft] .check:checked{background:var(--green)}
 html[data-theme=minecraft] .tpv{background-image:linear-gradient(transparent 55%,#5DBB3A 55%,#5DBB3A 65%,#80583a 65%)!important}
+
+/* ---- Login ---- */
+#login{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;padding:20px;background:var(--bgimg);background-size:var(--bgsize);background-color:var(--bg)}
+#login.open{display:flex}
+#login .box{width:100%;max-width:380px;background:var(--card);backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));border:1px solid var(--edge);border-radius:22px;padding:26px 22px;box-shadow:0 20px 50px -20px rgba(0,0,0,.45)}
+#login h1{font-size:30px;text-align:center;font-weight:800}
+#login h1 span{color:var(--tomato)}
+#login p.sub{text-align:center;margin:4px 0 18px}
+.users{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px}
+.ubtn{border:0;background:var(--soft);color:var(--ink);border-radius:14px;padding:14px 8px;cursor:pointer;font-weight:700;display:flex;flex-direction:column;align-items:center;gap:6px;box-shadow:inset 0 0 0 1.5px var(--line)}
+.ubtn .av{width:44px;height:44px;border-radius:50%;background:var(--tomato);color:#fff;display:grid;place-items:center;font-size:20px;font-family:var(--fh)}
+.ubtn.on{box-shadow:inset 0 0 0 3px var(--tomato)}
+.lerr{color:var(--tomato);font-size:13.5px;font-weight:600;min-height:20px;margin:6px 0 0;text-align:center}
+.hrow{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:11px 0;border-top:1px solid var(--line);cursor:pointer;width:100%;border-left:0;border-right:0;border-bottom:0;background:none;text-align:left;color:inherit}
+.hrow:first-of-type{border-top:0}
+.hrow .stk{grid-column:1/3;display:flex;height:8px;border-radius:99px;overflow:hidden;background:var(--line);margin-top:6px}
+.hrow .stk i{display:block;height:100%}
+.hrow .stk i.a{background:var(--mustard)} .hrow .stk i.b{background:var(--tomato)}
+.leg{display:flex;gap:12px;font-size:12px}
+.leg i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:4px}
+html[data-theme=minecraft] #login .box{border:3px solid #000}
 </style>
 </head>
 <body>
@@ -234,6 +255,15 @@ html[data-theme=minecraft] .tpv{background-image:linear-gradient(transparent 55%
 </nav>
 <div id="modal"><div class="sheet" id="sheet"></div></div>
 <div class="toast" id="toast"></div>
+<div id="login"><form class="box" id="fLogin" autocomplete="on">
+  <h1>Comi<span>da</span></h1>
+  <p class="sub muted small">Elige tu usuario e inicia sesión</p>
+  <div class="users" id="users"></div>
+  <label class="field"><span>Contraseña</span><input type="password" id="lPass" autocomplete="current-password" placeholder="••••••••"></label>
+  <label class="row small" style="margin:6px 0 12px"><input type="checkbox" class="check" id="lRec" checked> Mantener la sesión en este dispositivo</label>
+  <button class="btn red block" id="lBtn">Entrar</button>
+  <div class="lerr" id="lErr" role="alert"></div>
+</form></div>
 
 <script>
 /* ===================== CATÁLOGO ===================== */
@@ -359,13 +389,12 @@ const DIAS=[['lun','Lunes'],['mar','Martes'],['mie','Miércoles'],['jue','Jueves
 const CATS={super:['🛒','Súper'],mercado:['🥬','Mercado'],tortilla:['🫓','Tortillería'],fuera:['🍽️','Comida fuera'],otros:['📦','Otros']};
 
 /* ===================== ESTADO ===================== */
-const KEY='comida-estado-v1';
+const KEY0='comida-estado-v1';let KEY=KEY0,USER=null;
 function defState(){return {v:1,presupuesto:6000,personas:2,gastos:[],menu:{},lista:[],precios:{},
   tema:'clasico',opac:72,acento:null,
   fijos:[{id:'fx1',n:'Internet',em:'🌐',monto:500,dia:1,pagos:{}},{id:'fx2',n:'Gas',em:'🔥',monto:500,dia:1,pagos:{}}]}}
 let S=defState();
 function merge(o){const d=defState();return Object.assign(d,o||{})}
-try{const r=localStorage.getItem(KEY);if(r)S=merge(JSON.parse(r))}catch(e){}
 
 /* ===================== TEMAS ===================== */
 const TEMAS={
@@ -415,7 +444,7 @@ async function initCloud(){
     const [db,user]=await Promise.all([window.claude.use('db'),window.claude.use('user')]);
     const uid=user?await user.id():null;
     if(!db||!uid){setSync('','Solo en este equipo');loaded=true;return}
-    docRef=db.doc('data/users/'+uid+'/estado');
+    docRef=db.doc('data/users/'+uid+'/estado_'+USER);
     const timer=setTimeout(()=>setSync('err','Sin conexión'),10000);
     const snap=await docRef.get();clearTimeout(timer);
     if(snap.exists&&!editedEarly){const d=snap.data();if(d&&d.json){try{S=merge(JSON.parse(d.json));try{localStorage.setItem(KEY,d.json)}catch(e){}}catch(e){}}}
@@ -478,6 +507,7 @@ function vInicio(){
   const porCat={};gastosMes(m).forEach(g=>porCat[g.cat]=(porCat[g.cat]||0)+(+g.monto||0));
   const maxCat=Math.max(1,...Object.values(porCat));
   return `
+  <div class="small muted" style="margin:6px 2px 0">Hola, <b>${esc((USUARIOS[USER]||{}).n||'')}</b> 👋</div>
   <div class="card">
     <div class="row between"><span class="muted small" style="text-transform:capitalize">${nombreMes(m)}</span><button class="btn sm alt" data-act="editPres">Presupuesto ${money(pres)}</button></div>
     <div style="margin-top:10px" class="muted small">Te queda</div>
@@ -591,6 +621,44 @@ function vLista(){
   <a class="ext" href="https://www.tiendas3b.com/tienda/" target="_blank" rel="noopener">Ver catálogo de Tiendas 3B ↗</a></p>`;
 }
 
+function mesesConDatos(){
+  const set=new Set([hoy().slice(0,7)]);
+  S.gastos.forEach(g=>set.add(mesKey(g.fecha)));
+  S.fijos.forEach(f=>Object.keys(f.pagos||{}).forEach(m=>set.add(m)));
+  return [...set].sort().reverse();
+}
+function datosMes(m){
+  const comida=gastosMes(m).reduce((s,g)=>s+(+g.monto||0),0);
+  const fijos=S.fijos.filter(f=>pagadoF(f,m)).reduce((s,f)=>s+montoPagado(f,m),0);
+  return {comida,fijos,total:comida+fijos};
+}
+function vHistorial(){
+  const ms=mesesConDatos(),rows=ms.map(m=>[m,datosMes(m)]);
+  const mx=Math.max(1,...rows.map(r=>r[1].total)),tot=rows.reduce((s,r)=>s+r[1].total,0);
+  const prom=rows.length?tot/rows.length:0;
+  return `
+  <div class="sec-title"><h2>Historial mensual</h2><button class="btn sm alt" data-act="csv">⬇ CSV</button></div>
+  <div class="card">
+    <div class="stats" style="grid-template-columns:1fr 1fr">
+      <div class="stat"><span class="tiny muted">Total acumulado</span><b>${money(tot)}</b></div>
+      <div class="stat"><span class="tiny muted">Promedio por mes</span><b>${money(prom)}</b></div>
+    </div>
+    <div class="leg muted" style="margin:10px 0 2px"><span><i style="background:var(--mustard)"></i>Comida</span><span><i style="background:var(--tomato)"></i>Gastos fijos</span></div>
+    ${rows.map(([m,d])=>`<button class="hrow" data-act="verMes" data-m="${m}">
+      <b style="text-transform:capitalize">${nombreMes(m)}</b><b>${money(d.total)}</b>
+      <span class="small muted">Comida ${money(d.comida)} · Fijos ${money(d.fijos)}</span><span></span>
+      <span class="stk"><i class="a" style="width:${d.comida/mx*100}%"></i><i class="b" style="width:${d.fijos/mx*100}%"></i></span></button>`).join('')}
+  </div>`;
+}
+function descargarCSV(){
+  const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+  const L=[['usuario','tipo','fecha_o_mes','concepto','categoria','monto']];
+  const u=(USUARIOS[USER]||{}).n||'';
+  S.gastos.slice().sort((a,b)=>a.fecha.localeCompare(b.fecha)).forEach(g=>L.push([u,'comida',g.fecha,g.tienda||'',(CATS[g.cat]||CATS.otros)[1],g.monto]));
+  S.fijos.forEach(f=>Object.keys(f.pagos||{}).sort().forEach(m=>L.push([u,'fijo',m,f.n,'Fijo',montoPagado(f,m)])));
+  const blob=new Blob(['\ufeff'+L.map(r=>r.map(q).join(',')).join('\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='gastos-'+(USER||'comida')+'.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+}
 function vGastos(){
   const gs=gastosMes(mesVista).sort((a,b)=>b.fecha.localeCompare(a.fecha)||b.creado-a.creado);
   const {gastado,pres,rest,pct}=resumenMes(mesVista);
@@ -616,13 +684,15 @@ function vGastos(){
       <div class="gasto"><div class="gico">${(CATS[g.cat]||CATS.otros)[0]}</div>
       <div style="flex:1;min-width:0"><b>${esc(g.tienda||(CATS[g.cat]||CATS.otros)[1])}</b><div class="small muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc((CATS[g.cat]||CATS.otros)[1])}${g.nota?' · '+esc(g.nota):''}</div></div>
       <b>${fmt2.format(+g.monto||0)}</b><button class="x" data-act="delGasto" data-id="${g.id}" aria-label="Borrar">×</button></div>`).join('')}</div>`}).join('')
-  :`<div class="card empty-state"><div class="em">🧾</div><p>Sin gastos en este mes.</p></div>`}`;
+  :`<div class="card empty-state"><div class="em">🧾</div><p>Sin gastos en este mes.</p></div>`}
+  ${vHistorial()}`;
 }
 
 
 let mesFijos=hoy().slice(0,7);
 const EMS_FIJO=['🌐','🔥','💡','💧','📱','🏠','📺','🚌','🎓','💊','🛡️','🐶','🎮','🧾'];
-function pagadoF(f,m){return !!(f.pagos&&f.pagos[m])}
+function pagadoF(f,m){return !!(f.pagos&&f.pagos[m]!=null)}
+function montoPagado(f,m){const v=f.pagos&&f.pagos[m];return typeof v==='number'?v:(v?(+f.monto||0):0)}
 function badgeFijo(f,m){
   if(pagadoF(f,m))return '<span class="badge ok">Pagado</span>';
   const hm=hoy().slice(0,7);
@@ -636,7 +706,7 @@ function badgeFijo(f,m){
 }
 function vFijos(){
   const m=mesFijos,fs=S.fijos.slice().sort((a,b)=>(+a.dia||0)-(+b.dia||0));
-  const total=fs.reduce((s,f)=>s+(+f.monto||0),0),pagado=fs.filter(f=>pagadoF(f,m)).reduce((s,f)=>s+(+f.monto||0),0);
+  const total=fs.reduce((s,f)=>s+(pagadoF(f,m)?montoPagado(f,m):(+f.monto||0)),0),pagado=fs.filter(f=>pagadoF(f,m)).reduce((s,f)=>s+montoPagado(f,m),0);
   const pend=total-pagado,pct=total?pagado/total*100:0,comida=+S.presupuesto||0;
   return `
   <div class="card">
@@ -700,6 +770,7 @@ function refrescaTemas(){document.querySelectorAll('.temaBox').forEach(b=>b.inne
 function vAjustes(){
   return `
   <div class="sec-title"><h2>Ajustes</h2><a class="small ext" href="#inicio">Listo</a></div>
+  <div class="card row between"><div><span class="muted small">Sesión iniciada como</span><div><b>${esc((USUARIOS[USER]||{}).n||'')}</b></div></div><button class="btn sm alt" data-act="salir">Cerrar sesión</button></div>
   <div class="sec-title"><h2>Tema y apariencia</h2></div>
   <div class="card"><div class="temaBox">${temaInner()}</div></div>
   <div class="card">
@@ -859,13 +930,16 @@ document.addEventListener('click',e=>{
   const a=el.dataset.act,id=el.dataset.id;
   switch(a){
     case 'close':closeModal();break;
+    case 'salir':salir();break;
+    case 'csv':descargarCSV();break;
+    case 'verMes':mesVista=el.dataset.m;mesFijos=el.dataset.m;render();window.scrollTo(0,0);break;
     case 'temas':openModal(`<h2>Tema y apariencia</h2><div class="temaBox">${temaInner()}</div><button class="btn alt block" data-act="close">Listo</button>`);break;
     case 'setTema':S.tema=id;aplicarTema();persist();refrescaTemas();break;
     case 'resetAcento':S.acento=null;aplicarTema();persist();refrescaTemas();break;
     case 'nuevoFijo':modalFijo();break;
     case 'editFijo':modalFijo(id);break;
     case 'delFijo':confirmar('¿Borrar este gasto mensual?','Se quitará de tu planeación.','Borrar',()=>{S.fijos=S.fijos.filter(x=>x.id!==id);persist();render()});break;
-    case 'togglePago':{const f=S.fijos.find(x=>x.id===id);if(f){f.pagos=f.pagos||{};if(el.checked)f.pagos[mesFijos]=true;else delete f.pagos[mesFijos];persist();render()}break}
+    case 'togglePago':{const f=S.fijos.find(x=>x.id===id);if(f){f.pagos=f.pagos||{};if(el.checked)f.pagos[mesFijos]=+f.monto||0;else delete f.pagos[mesFijos];persist();render()}break}
     case 'mesF':{const [y,mo]=mesFijos.split('-').map(Number);const d=new Date(y,mo-1+(+el.dataset.d),1);mesFijos=d.getFullYear()+'-'+pad(d.getMonth()+1);render();break}
     case 'nuevoGasto':modalGasto();break;
     case 'editPres':location.hash='#ajustes';break;
@@ -917,8 +991,72 @@ function route(){
 }
 window.addEventListener('hashchange',route);
 window.addEventListener('scroll',()=>$('#hdr').classList.toggle('scrolled',scrollY>4),{passive:true});
-route();
-initCloud();
+
+/* ===================== USUARIOS / LOGIN ===================== */
+// Contraseñas guardadas solo como hash SHA-256 con sal (usuario). Ojo: es una puerta básica del lado del navegador, no seguridad real.
+const USUARIOS={
+  alejandro:{n:'Alejandro',h:'58c2791ddfcf5e823736b11d3c7a6e3383e191acad1a961fe8ee65b67a3c2542'},
+  fernanda:{n:'Fernanda',h:'dc1495239defe7d7acee3ef9b7bd74e7a04a582c4c2056912f8fb7580245cfb8'},
+};
+function sha256(ascii){
+  function rr(v,a){return(v>>>a)|(v<<(32-a))}
+  var mp=Math.pow,mw=mp(2,32),i,j,result='',words=[],bl=ascii.length*8;
+  var hash=sha256.h=sha256.h||[],k=sha256.k=sha256.k||[],pc=k.length,ic={};
+  for(var c=2;pc<64;c++){if(!ic[c]){for(i=0;i<313;i+=c)ic[i]=c;hash[pc]=(mp(c,.5)*mw)|0;k[pc++]=(mp(c,1/3)*mw)|0}}
+  ascii+='\x80';while(ascii.length%64-56)ascii+='\x00';
+  for(i=0;i<ascii.length;i++){j=ascii.charCodeAt(i);words[i>>2]|=j<<((3-i)%4)*8}
+  words[words.length]=((bl/mw)|0);words[words.length]=bl;
+  for(j=0;j<words.length;){var w=words.slice(j,j+=16),oh=hash;hash=hash.slice(0,8);
+    for(i=0;i<64;i++){var w15=w[i-15],w2=w[i-2],a=hash[0],e=hash[4];
+      var t1=hash[7]+(rr(e,6)^rr(e,11)^rr(e,25))+((e&hash[5])^((~e)&hash[6]))+k[i]+(w[i]=(i<16)?w[i]:(w[i-16]+(rr(w15,7)^rr(w15,18)^(w15>>>3))+w[i-7]+(rr(w2,17)^rr(w2,19)^(w2>>>10)))|0);
+      var t2=(rr(a,2)^rr(a,13)^rr(a,22))+((a&hash[1])^(a&hash[2])^(hash[1]&hash[2]));
+      hash=[(t1+t2)|0].concat(hash);hash[4]=(hash[4]+t1)|0}
+    for(i=0;i<8;i++)hash[i]=(hash[i]+oh[i])|0}
+  for(i=0;i<8;i++)for(j=3;j+1;j--){var b=(hash[i]>>(j*8))&255;result+=((b<16)?0:'')+b.toString(16)}
+  return result;
+}
+const hashPw=(id,pw)=>sha256(unescape(encodeURIComponent('comida|'+id+'|'+pw)));
+const SESKEY='comida-sesion';
+function getSesion(){try{const id=sessionStorage.getItem(SESKEY)||localStorage.getItem(SESKEY);return USUARIOS[id]?id:null}catch(e){return null}}
+function entrar(id,recordar){
+  USER=id;KEY=KEY0+':'+id;
+  try{sessionStorage.removeItem(SESKEY);localStorage.removeItem(SESKEY);(recordar?localStorage:sessionStorage).setItem(SESKEY,id)}catch(e){}
+  S=defState();let raw=null;
+  try{
+    raw=localStorage.getItem(KEY);
+    if(!raw&&!localStorage.getItem(KEY0+':migrado')){const leg=localStorage.getItem(KEY0);if(leg){raw=leg;localStorage.setItem(KEY0+':migrado',id)}}
+  }catch(e){}
+  if(raw){try{S=merge(JSON.parse(raw));localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+  loaded=false;editedEarly=false;docRef=null;
+  $('#login').classList.remove('open');
+  mesVista=hoy().slice(0,7);mesFijos=mesVista;
+  aplicarTema();route();initCloud();
+}
+function salir(){
+  try{sessionStorage.removeItem(SESKEY);localStorage.removeItem(SESKEY)}catch(e){}
+  location.hash='';location.reload();
+}
+let loginUser=null,loginFails=0;
+function pintaUsuarios(){
+  $('#users').innerHTML=Object.entries(USUARIOS).map(([id,u])=>`<button type="button" class="ubtn ${loginUser===id?'on':''}" data-u="${id}"><span class="av">${esc(u.n[0])}</span>${esc(u.n)}</button>`).join('');
+}
+function mostrarLogin(){
+  loginUser=null;pintaUsuarios();$('#lPass').value='';$('#lErr').textContent='';
+  $('#login').classList.add('open');
+}
+$('#users').addEventListener('click',e=>{const b=e.target.closest('[data-u]');if(!b)return;loginUser=b.dataset.u;pintaUsuarios();$('#lErr').textContent='';$('#lPass').focus()});
+$('#fLogin').addEventListener('submit',e=>{
+  e.preventDefault();
+  const err=$('#lErr');
+  if(!loginUser){err.textContent='Elige primero tu usuario';return}
+  if(hashPw(loginUser,$('#lPass').value)===USUARIOS[loginUser].h){loginFails=0;entrar(loginUser,$('#lRec').checked)}
+  else{
+    loginFails++;err.textContent='Contraseña incorrecta';$('#lPass').value='';
+    const b=$('#lBtn');b.disabled=true;setTimeout(()=>{b.disabled=false},Math.min(8000,loginFails*1000));
+  }
+});
+function iniciar(){const id=getSesion();if(id)entrar(id,!!localStorage.getItem(SESKEY));else mostrarLogin()}
+iniciar();
 </script>
 </body>
 </html>
