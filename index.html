@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Comida · Gastos, menú y lista</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&family=Inter:wght@400;500;600&family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+/* ---- Tema base (Clásico) ---- */
+:root{
+  --bg:#FBF6EE; --card-rgb:255,255,255; --soft-rgb:251,246,238; --alpha:.72;
+  --ink:#2A2320; --muted:#7A6E66; --line:rgba(80,50,20,.14); --edge:rgba(255,255,255,.6);
+  --tomato:#D9472B; --tomato-soft:rgba(217,71,43,.14); --green:#3E7C4F; --green-soft:rgba(62,124,79,.16);
+  --mustard:#E9B44C; --mustard-soft:rgba(233,180,76,.24); --radius:16px; --blur:14px;
+  --btnbg:#2A2320; --btnfg:#fff; --fh:"Bricolage Grotesque",Inter,sans-serif; --fb:Inter,system-ui,sans-serif; --fsz:15px; --scheme:light;
+  --bgimg:radial-gradient(circle at 12% 8%,rgba(233,180,76,.55),transparent 42%),radial-gradient(circle at 92% 28%,rgba(217,71,43,.32),transparent 48%),radial-gradient(circle at 25% 96%,rgba(62,124,79,.38),transparent 50%),linear-gradient(#FBF6EE,#F4E6D2);
+  --bgsize:cover;
+  --card:rgba(var(--card-rgb),var(--alpha));
+  --soft:rgba(var(--soft-rgb),calc(var(--alpha) * .85));
+  --glass:rgba(var(--card-rgb),calc(var(--alpha) * .5 + .45));
+  --sheet:rgba(var(--card-rgb),.97);
+  color-scheme:var(--scheme);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{background:var(--bg)}
+body{margin:0;background:transparent;color:var(--ink);font-family:var(--fb);font-size:var(--fsz);line-height:1.45;min-height:100vh}
+body::before{content:"";position:fixed;inset:0;z-index:-1;background:var(--bgimg);background-size:var(--bgsize);background-position:center}
+h1,h2,h3{font-family:var(--fh);margin:0;letter-spacing:-.01em}
+button,input,select,textarea{font:inherit;color:inherit}
+header{position:sticky;top:0;z-index:5;background:var(--glass);backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));padding:calc(env(safe-area-inset-top) + 12px) 18px 10px;display:flex;align-items:center;gap:10px;border-bottom:1px solid transparent}
+header.scrolled{border-bottom-color:var(--line)}
+header h1{font-size:22px;font-weight:800;flex:1}
+header h1 span{color:var(--tomato)}
+.sync{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:5px}
+.sync i{width:7px;height:7px;border-radius:50%;background:var(--muted);display:inline-block}
+.sync.ok i{background:var(--green)} .sync.err i{background:var(--tomato)}
+.iconbtn{border:0;background:var(--card);color:var(--ink);width:38px;height:38px;border-radius:12px;display:grid;place-items:center;box-shadow:0 1px 0 var(--line);cursor:pointer}
+main{padding:6px 16px calc(96px + env(safe-area-inset-bottom));max-width:640px;margin:0 auto}
+.card{background:var(--card);backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));border:1px solid var(--edge);border-radius:var(--radius);padding:16px;margin:12px 0;box-shadow:0 1px 0 var(--line),0 6px 20px -14px rgba(60,40,20,.25)}
+.row{display:flex;align-items:center;gap:10px}
+.between{justify-content:space-between}
+.muted{color:var(--muted)} .small{font-size:13px} .tiny{font-size:11.5px}
+.big{font-family:var(--fh);font-size:34px;font-weight:800;line-height:1}
+.bar{height:12px;border-radius:99px;background:var(--line);overflow:hidden;margin:12px 0 8px}
+.bar>div{height:100%;border-radius:99px;background:var(--green);transition:width .4s}
+.bar.warn>div{background:var(--mustard)} .bar.over>div{background:var(--tomato)}
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:6px}
+.stat{background:var(--soft);border-radius:12px;padding:10px}
+.stat b{display:block;font-size:16px}
+.btn{border:0;border-radius:12px;padding:12px 16px;font-weight:600;cursor:pointer;background:var(--btnbg);color:var(--btnfg);display:inline-flex;align-items:center;gap:8px;justify-content:center}
+.btn.alt{background:var(--card);color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--line)}
+.btn.red{background:var(--tomato);color:#fff} .btn.green{background:var(--green);color:#fff}
+.btn.block{width:100%} .btn.sm{padding:8px 12px;font-size:13.5px;border-radius:10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+.btns .btn{flex:1}
+.sec-title{display:flex;align-items:baseline;justify-content:space-between;margin:20px 2px 4px}
+.sec-title h2{font-size:19px}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:4px 0 8px;scrollbar-width:none}
+.chip{border:0;border-radius:99px;padding:7px 13px;background:var(--card);box-shadow:inset 0 0 0 1.5px var(--line);white-space:nowrap;cursor:pointer;font-size:13.5px;font-weight:500}
+.chip.on{background:var(--btnbg);color:var(--btnfg);box-shadow:none}
+.day{padding:12px 14px}
+.day h3{font-size:16px;display:flex;justify-content:space-between;align-items:center}
+.day.today{box-shadow:inset 0 0 0 2px var(--tomato),0 6px 20px -14px rgba(60,40,20,.25)}
+.badge{font-family:var(--fb);font-size:11px;font-weight:600;padding:3px 8px;border-radius:99px;background:var(--tomato-soft);color:var(--tomato)}
+.slot{display:flex;align-items:center;gap:10px;width:100%;border:0;background:var(--soft);border-radius:12px;padding:9px 10px;margin-top:7px;text-align:left;cursor:pointer}
+.slot .em{font-size:22px;width:30px;text-align:center}
+.slot .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+.slot .nm{font-weight:600}
+.slot.empty .nm{color:var(--muted);font-weight:500}
+.slot .cost{margin-left:auto;font-size:13px;color:var(--muted);white-space:nowrap}
+.rgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.rcard{border:0;text-align:left;background:var(--card);border-radius:var(--radius);padding:14px;cursor:pointer;box-shadow:0 1px 0 var(--line);display:flex;flex-direction:column;gap:4px}
+.rcard .em{font-size:30px}
+.rcard b{font-family:var(--fh);font-size:16px;line-height:1.2}
+.search{width:100%;border:0;border-radius:12px;padding:12px 14px;background:var(--card);box-shadow:inset 0 0 0 1.5px var(--line);margin-top:8px}
+.item{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--line)}
+.item:first-of-type{border-top:0}
+.check{appearance:none;width:26px;height:26px;border-radius:8px;border:2px solid var(--line);flex:none;display:grid;place-items:center;cursor:pointer;margin:0;background:var(--sheet)}
+.check:checked{background:var(--green);border-color:var(--green)}
+.check:checked::after{content:"";width:7px;height:12px;border:solid #fff;border-width:0 3px 3px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.item.done .iname{text-decoration:line-through;color:var(--muted)}
+.iname{font-weight:600}
+.item .price{margin-left:auto;text-align:right;white-space:nowrap}
+.x{border:0;background:none;color:var(--muted);font-size:20px;cursor:pointer;padding:0 4px}
+.qty{display:flex;align-items:center;gap:4px}
+.qty button{border:0;background:var(--soft);color:var(--ink);width:26px;height:26px;border-radius:8px;cursor:pointer;font-weight:700}
+.store-h{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;margin-bottom:2px}
+.gasto{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.gasto:first-child{border-top:0}
+.gico{width:36px;height:36px;border-radius:10px;background:var(--mustard-soft);display:grid;place-items:center;font-size:18px;flex:none}
+.catbar{display:grid;grid-template-columns:96px 1fr 70px;align-items:center;gap:8px;margin:7px 0;font-size:13.5px}
+.catbar .bar{margin:0;height:9px}
+.catbar .bar>div{background:var(--mustard)}
+nav{position:fixed;bottom:0;left:0;right:0;z-index:6;background:var(--glass);backdrop-filter:blur(var(--blur));-webkit-backdrop-filter:blur(var(--blur));border-top:1px solid var(--edge);display:flex;padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
+nav a{flex:1;text-decoration:none;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;font-weight:600;padding:6px 0;border-radius:12px;position:relative}
+nav a svg{width:23px;height:23px}
+nav a.on{color:var(--tomato)}
+nav a .dot{position:absolute;top:2px;right:calc(50% - 20px);background:var(--tomato);color:#fff;font-size:10px;min-width:17px;height:17px;border-radius:99px;display:grid;place-items:center;padding:0 4px}
+.field{display:block;margin:10px 0}
+.field span{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:4px}
+.field input,.field select,.field textarea{width:100%;border:0;border-radius:12px;padding:12px;background:var(--soft);box-shadow:inset 0 0 0 1.5px var(--line)}
+.field input:focus,.field select:focus,.search:focus{outline:2px solid var(--tomato);outline-offset:0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#modal{position:fixed;inset:0;z-index:20;background:rgba(30,20,10,.45);display:none;align-items:flex-end;justify-content:center}
+#modal.open{display:flex}
+#modal .sheet{background:var(--sheet);border:1px solid var(--edge);width:100%;max-width:640px;max-height:90vh;overflow:auto;border-radius:22px 22px 0 0;padding:18px 18px calc(22px + env(safe-area-inset-bottom));animation:up .22s ease-out}
+@keyframes up{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
+.sheet h2{font-size:21px;margin-bottom:4px}
+.grab{width:42px;height:5px;border-radius:9px;background:var(--line);margin:-6px auto 12px}
+.pick{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;padding:11px 4px;border-top:1px solid var(--line);text-align:left;cursor:pointer}
+.pick .em{font-size:22px}
+.pick .cost{margin-left:auto;color:var(--muted);font-size:13px}
+ol.steps{padding-left:20px;margin:6px 0} ol.steps li{margin:6px 0}
+ul.ing{list-style:none;padding:0;margin:6px 0}
+ul.ing li{display:flex;justify-content:space-between;padding:6px 0;border-top:1px dashed var(--line);font-size:14px}
+.empty-state{text-align:center;padding:26px 10px;color:var(--muted)}
+.empty-state .em{font-size:40px}
+.prod{display:grid;grid-template-columns:1fr 84px 100px;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:13.5px}
+.prod input,.prod select{border:0;border-radius:9px;padding:8px;background:var(--soft);box-shadow:inset 0 0 0 1.5px var(--line);width:100%}
+.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--btnbg);color:var(--btnfg);padding:10px 16px;border-radius:12px;font-size:14px;z-index:30;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+a.ext{color:var(--tomato);font-weight:600}
+textarea{min-height:90px}
+
+/* ---- Nuevos componentes ---- */
+.badge.ok{background:var(--green-soft);color:var(--green)}
+.badge.warn{background:var(--mustard-soft);color:var(--ink)}
+.tgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+.tcard{border:0;background:var(--soft);color:var(--ink);border-radius:14px;padding:8px;cursor:pointer;display:flex;flex-direction:column;gap:7px;text-align:left;font-weight:600;box-shadow:inset 0 0 0 1.5px var(--line)}
+.tcard.on{box-shadow:inset 0 0 0 3px var(--tomato)}
+.tpv{height:46px;border-radius:9px;display:block;position:relative;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
+.tpv::after{content:"";position:absolute;left:14%;right:14%;bottom:10%;height:38%;border-radius:6px;background:rgba(255,255,255,.55);backdrop-filter:blur(3px)}
+.range{width:100%;accent-color:var(--tomato)}
+.fx{flex:1;min-width:0;border:0;background:none;text-align:left;cursor:pointer;padding:2px 0;color:inherit}
+.fx b{display:block}
+.emopick{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px}
+.emopick label{cursor:pointer}
+.emopick input{position:absolute;opacity:0;pointer-events:none}
+.emopick span{display:grid;place-items:center;width:40px;height:40px;border-radius:10px;background:var(--soft);font-size:20px;box-shadow:inset 0 0 0 1.5px var(--line)}
+.emopick input:checked+span{box-shadow:inset 0 0 0 3px var(--tomato)}
+
+/* ---- TEMAS ---- */
+html[data-theme=noche]{
+  --bg:#0d1220; --card-rgb:26,32,54; --soft-rgb:44,52,84; --ink:#EDEFF7; --muted:#9BA4C2; --line:rgba(255,255,255,.14); --edge:rgba(255,255,255,.12);
+  --tomato:#FF6B57; --tomato-soft:rgba(255,107,87,.2); --green:#4CC38A; --green-soft:rgba(76,195,138,.2); --mustard:#F2C14E; --mustard-soft:rgba(242,193,78,.2);
+  --btnbg:#EDEFF7; --btnfg:#0d1220; --scheme:dark;
+  --bgimg:radial-gradient(circle at 15% 12%,rgba(124,92,255,.55),transparent 45%),radial-gradient(circle at 88% 35%,rgba(40,140,255,.4),transparent 50%),radial-gradient(circle at 30% 95%,rgba(255,107,87,.3),transparent 50%),linear-gradient(#0d1220,#151a33);
+}
+html[data-theme=oceano]{
+  --bg:#0b4a6e; --card-rgb:238,250,255; --soft-rgb:214,240,250; --ink:#0b2540; --muted:#46657e; --line:rgba(11,37,64,.15); --edge:rgba(255,255,255,.55);
+  --tomato:#F25C54; --tomato-soft:rgba(242,92,84,.16); --green:#0E9F8E; --green-soft:rgba(14,159,142,.18); --mustard:#F4B942; --mustard-soft:rgba(244,185,66,.26);
+  --btnbg:#0b2540; --btnfg:#fff;
+  --bgimg:radial-gradient(circle at 80% 10%,rgba(120,230,255,.55),transparent 40%),radial-gradient(circle at 10% 70%,rgba(0,190,200,.4),transparent 45%),linear-gradient(165deg,#13a3c4 0%,#1668b0 48%,#0b2a63 100%);
+}
+html[data-theme=atardecer]{
+  --bg:#c2456a; --card-rgb:255,247,242; --soft-rgb:255,232,222; --ink:#3b1d2e; --muted:#8a5a6c; --line:rgba(59,29,46,.15); --edge:rgba(255,255,255,.5);
+  --tomato:#D63A5B; --tomato-soft:rgba(214,58,91,.15); --green:#2F8F6B; --green-soft:rgba(47,143,107,.17); --mustard:#F2A93B; --mustard-soft:rgba(242,169,59,.26);
+  --btnbg:#3b1d2e; --btnfg:#fff;
+  --bgimg:radial-gradient(circle at 50% 0%,rgba(255,225,120,.75),transparent 45%),linear-gradient(170deg,#ff9a5a 0%,#ea5273 45%,#5b2a86 100%);
+}
+html[data-theme=sakura]{
+  --bg:#ffc9dc; --card-rgb:255,255,255; --soft-rgb:255,236,244; --ink:#4a2338; --muted:#9a6a82; --line:rgba(74,35,56,.14); --edge:rgba(255,255,255,.7);
+  --tomato:#E0457B; --tomato-soft:rgba(224,69,123,.15); --green:#4F9E78; --green-soft:rgba(79,158,120,.17); --mustard:#F2B64B; --mustard-soft:rgba(242,182,75,.26);
+  --btnbg:#4a2338; --btnfg:#fff;
+  --bgimg:radial-gradient(circle at 85% 8%,rgba(255,255,255,.8),transparent 40%),radial-gradient(circle at 8% 60%,rgba(190,150,255,.45),transparent 45%),linear-gradient(160deg,#ffe3ee,#ffc2d8 55%,#f7a6c8);
+}
+html[data-theme=bosque]{
+  --bg:#1b4a2e; --card-rgb:243,250,238; --soft-rgb:222,240,216; --ink:#1c2f20; --muted:#587460; --line:rgba(28,47,32,.15); --edge:rgba(255,255,255,.45);
+  --tomato:#D9622B; --tomato-soft:rgba(217,98,43,.16); --green:#2E7D46; --green-soft:rgba(46,125,70,.18); --mustard:#E3B341; --mustard-soft:rgba(227,179,65,.28);
+  --btnbg:#1c2f20; --btnfg:#fff;
+  --bgimg:radial-gradient(circle at 85% 10%,rgba(200,255,150,.4),transparent 42%),radial-gradient(circle at 10% 80%,rgba(20,90,60,.6),transparent 50%),linear-gradient(165deg,#2f7a4a,#1d5a37 55%,#123a26);
+}
+
+/* Minecraft */
+html[data-theme=minecraft]{
+  --bg:#5a3d24; --card-rgb:48,48,52; --soft-rgb:20,20,22; --alpha:.8; --ink:#FFFFFF; --muted:#BDBDBD; --line:rgba(0,0,0,.5); --edge:#000;
+  --tomato:#E8473B; --tomato-soft:rgba(232,71,59,.28); --green:#5DBB3A; --green-soft:rgba(93,187,58,.28); --mustard:#FCDB05; --mustard-soft:rgba(252,219,5,.22);
+  --btnbg:#7d7d7d; --btnfg:#fff; --blur:3px; --scheme:dark; --radius:0px;
+  --fh:"Press Start 2P",monospace; --fb:"VT323",monospace; --fsz:19px;
+  --bgimg:conic-gradient(rgba(0,0,0,.2) 25%,transparent 0 50%,rgba(255,255,255,.05) 0 75%,transparent 0),conic-gradient(rgba(0,0,0,.14) 25%,transparent 0 50%,rgba(0,0,0,.08) 0 75%,transparent 0),linear-gradient(#80583a,#5a3d24);
+  --bgsize:64px 64px,24px 24px,cover;
+}
+html[data-theme=minecraft] *{border-radius:0!important}
+html[data-theme=minecraft] body{line-height:1.15}
+html[data-theme=minecraft] body::before{image-rendering:pixelated}
+html[data-theme=minecraft] header h1{font-size:14px}
+html[data-theme=minecraft] .big{font-size:22px;text-shadow:3px 3px 0 rgba(0,0,0,.55)}
+html[data-theme=minecraft] .sec-title h2{font-size:12px;text-shadow:2px 2px 0 rgba(0,0,0,.6);color:#fff}
+html[data-theme=minecraft] .sheet h2{font-size:14px}
+html[data-theme=minecraft] .day h3{font-size:12px}
+html[data-theme=minecraft] .rcard b{font-size:11px;line-height:1.4}
+html[data-theme=minecraft] h3{font-size:12px}
+html[data-theme=minecraft] .small{font-size:16px}
+html[data-theme=minecraft] .tiny{font-size:14px}
+html[data-theme=minecraft] .btn,
+html[data-theme=minecraft] .chip,
+html[data-theme=minecraft] .iconbtn,
+html[data-theme=minecraft] .tcard,
+html[data-theme=minecraft] .qty button{border:2px solid #000;box-shadow:inset -3px -3px 0 rgba(0,0,0,.4),inset 3px 3px 0 rgba(255,255,255,.35)}
+html[data-theme=minecraft] .btn{font-size:18px;text-shadow:2px 2px 0 rgba(0,0,0,.5)}
+html[data-theme=minecraft] .btn.alt{background:rgba(var(--card-rgb),.9)}
+html[data-theme=minecraft] .card,
+html[data-theme=minecraft] #modal .sheet{border:3px solid #000;box-shadow:inset 3px 3px 0 rgba(255,255,255,.16),inset -3px -3px 0 rgba(0,0,0,.4)}
+html[data-theme=minecraft] .tcard.on{border-color:#FCDB05}
+html[data-theme=minecraft] .bar{background:rgba(0,0,0,.6);border:2px solid #000;height:14px}
+html[data-theme=minecraft] .bar>div{box-shadow:inset 0 3px 0 rgba(255,255,255,.35)}
+html[data-theme=minecraft] header,
+html[data-theme=minecraft] nav{border-color:#000;border-width:3px}
+html[data-theme=minecraft] header{border-bottom:3px solid #000}
+html[data-theme=minecraft] nav a{font-size:14px}
+html[data-theme=minecraft] .check{border:2px solid #000;background:#8b8b8b}
+html[data-theme=minecraft] .check:checked{background:var(--green)}
+html[data-theme=minecraft] .tpv{background-image:linear-gradient(transparent 55%,#5DBB3A 55%,#5DBB3A 65%,#80583a 65%)!important}
+</style>
+</head>
+<body>
+<header id="hdr">
+  <h1><i id="hEm" style="font-style:normal"></i>Comi<span>da</span></h1>
+  <div class="sync" id="sync"><i></i><span>Local</span></div>
+  <button class="iconbtn" data-act="temas" aria-label="Cambiar tema">🎨</button>
+  <button class="iconbtn" data-go="ajustes" aria-label="Ajustes">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+  </button>
+</header>
+<main id="app"></main>
+<nav id="nav">
+  <a href="#inicio" data-tab="inicio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>Inicio</a>
+  <a href="#menu" data-tab="menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Menú</a>
+  <a href="#recetas" data-tab="recetas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13h16a8 8 0 0 1-16 0zM12 4v3M8 6l1 2M16 6l-1 2"/></svg>Recetas</a>
+  <a href="#lista" data-tab="lista"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg>Lista</a>
+  <a href="#gastos" data-tab="gastos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="13" rx="2"/><circle cx="12" cy="12.5" r="2.5"/><path d="M6 10v.01M18 15v.01"/></svg>Gastos</a>
+  <a href="#fijos" data-tab="fijos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M9 7h6M9 11h6M9 15h3"/></svg>Fijos</a>
+</nav>
+<div id="modal"><div class="sheet" id="sheet"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===================== CATÁLOGO ===================== */
+// Precios de referencia estimados (MXN). Se editan en Ajustes.
+const TIENDAS=['3B','Mercado','Tortillería','Panadería','Otra'];
+const PRODUCTOS=[
+ ['huevo','Huevo blanco','18 pzas',58,'3B'],
+ ['tortilla','Tortilla de maíz','1 kg',24,'Tortillería'],
+ ['tortharina','Tortillas de harina','10 pzas',26,'3B'],
+ ['tostadas','Tostadas','30 pzas',30,'3B'],
+ ['bolillo','Bolillo','1 pza',3.5,'Panadería'],
+ ['pancaja','Pan de caja','1 paquete',38,'3B'],
+ ['arroz','Arroz','1 kg',28,'3B'],
+ ['frijol','Frijol negro','1 kg',38,'3B'],
+ ['fideo','Sopa de fideo','200 g',9,'3B'],
+ ['espagueti','Espagueti','200 g',10,'3B'],
+ ['avena','Avena','400 g',22,'3B'],
+ ['hotcakes','Harina para hot cakes','500 g',29,'3B'],
+ ['pure','Puré de tomate','210 g',9,'3B'],
+ ['consome','Consomé de pollo','12 cubos',18,'3B'],
+ ['chipotle','Chiles chipotle','lata 105 g',14,'3B'],
+ ['atun','Atún en agua','lata 140 g',18,'3B'],
+ ['mayonesa','Mayonesa','390 g',35,'3B'],
+ ['aceite','Aceite vegetal','900 ml',39,'3B'],
+ ['leche','Leche entera','1 L',23,'3B'],
+ ['panela','Queso panela','400 g',58,'3B'],
+ ['queso','Queso Oaxaca','400 g',72,'3B'],
+ ['crema','Crema','450 ml',32,'3B'],
+ ['margarina','Margarina','90 g',14,'3B'],
+ ['jamon','Jamón de pavo','250 g',32,'3B'],
+ ['salchicha','Salchicha de pavo','500 g',36,'3B'],
+ ['pollo','Pollo en piezas','1 kg',85,'Mercado'],
+ ['molida','Carne molida de res','1 kg',145,'Mercado'],
+ ['jitomate','Jitomate','1 kg',30,'Mercado'],
+ ['tomverde','Tomate verde','1 kg',28,'Mercado'],
+ ['cebolla','Cebolla','1 kg',28,'Mercado'],
+ ['serrano','Chile serrano','250 g',12,'Mercado'],
+ ['ajo','Ajo','3 cabezas',15,'Mercado'],
+ ['papa','Papa','1 kg',30,'Mercado'],
+ ['zanahoria','Zanahoria','1 kg',22,'Mercado'],
+ ['calabacita','Calabacita','1 kg',28,'Mercado'],
+ ['nopales','Nopales limpios','1 kg',28,'Mercado'],
+ ['aguacate','Aguacate','1 kg',75,'Mercado'],
+ ['limon','Limón','1 kg',35,'Mercado'],
+ ['lechuga','Lechuga','1 pza',16,'Mercado'],
+ ['platano','Plátano','1 kg',25,'Mercado'],
+ ['lenteja','Lentejas','500 g',24,'3B'],
+ ['garbanzo','Garbanzo','500 g',32,'3B'],
+ ['codo','Pasta codo','200 g',9,'3B'],
+ ['tocino','Tocino','200 g',48,'3B'],
+ ['maiz','Elote en lata','220 g',16,'3B'],
+ ['mole','Pasta de mole','235 g',55,'3B'],
+ ['yogurt','Yogurt natural','1 L',38,'3B'],
+ ['cereal','Cereal','500 g',45,'3B'],
+ ['chorizo','Chorizo','250 g',45,'Mercado'],
+ ['chuleta','Chuleta de cerdo','1 kg',110,'Mercado'],
+ ['bistec','Bistec de res','1 kg',165,'Mercado'],
+ ['pechuga','Pechuga de pollo','1 kg',110,'Mercado'],
+ ['res','Carne de res para caldo','1 kg',130,'Mercado'],
+ ['chicharron','Chicharrón prensado','250 g',45,'Mercado'],
+ ['poblano','Chile poblano','500 g',40,'Mercado'],
+ ['chayote','Chayote','1 kg',24,'Mercado'],
+ ['brocoli','Brócoli','1 pza',28,'Mercado'],
+ ['manzana','Manzana','1 kg',45,'Mercado'],
+ ['pepino','Pepino','1 kg',26,'Mercado'],
+].map(([id,n,pres,p,t])=>({id,n,pres,p,t}));
+const PROD=Object.fromEntries(PRODUCTOS.map(p=>[p.id,p]));
+
+// Recetas base para 4 porciones. ing: [producto, fracción del paquete, texto]
+const RECETAS=[
+ {id:'huevosmex',n:'Huevos a la mexicana',em:'🍳',tipo:['d','n'],min:15,ing:[['huevo',.45,'8 huevos'],['jitomate',.25,'2 jitomates'],['cebolla',.1,'½ cebolla'],['serrano',.1,'2 chiles serranos'],['aceite',.03,'2 cdas de aceite'],['tortilla',.4,'tortillas al gusto']],pasos:['Pica jitomate, cebolla y chile.','Sofríe todo en aceite 3 minutos.','Agrega los huevos batidos con sal y mueve hasta que cuajen.','Sirve con tortillas calientes.']},
+ {id:'hotcakes',n:'Hot cakes con plátano',em:'🥞',tipo:['d'],min:20,ing:[['hotcakes',.6,'300 g de harina'],['leche',.4,'1½ tazas de leche'],['huevo',.06,'1 huevo'],['platano',.3,'2 plátanos'],['margarina',.5,'margarina para el comal']],pasos:['Mezcla harina, leche y huevo sin batir de más.','Calienta el sartén con poca margarina.','Vierte ¼ de taza por hot cake; voltea cuando salgan burbujas.','Sirve con plátano en rodajas.']},
+ {id:'avena',n:'Avena con plátano',em:'🥣',tipo:['d'],min:10,ing:[['avena',.5,'2 tazas de avena'],['leche',1,'1 L de leche'],['platano',.3,'2 plátanos']],pasos:['Hierve la leche con una pizca de canela si tienes.','Agrega la avena y cocina 5 minutos moviendo.','Sirve con plátano picado.']},
+ {id:'molletes',n:'Molletes',em:'🥖',tipo:['d','n'],min:15,ing:[['bolillo',4,'4 bolillos'],['frijol',.15,'frijoles refritos'],['panela',.5,'200 g de queso'],['jitomate',.15,'1 jitomate (pico de gallo)'],['cebolla',.05,'¼ de cebolla']],pasos:['Parte los bolillos y úntales frijoles.','Cubre con queso y gratina en horno o sartén tapado.','Sirve con pico de gallo.']},
+ {id:'sincronizadas',n:'Sincronizadas',em:'🌮',tipo:['n'],min:10,ing:[['tortharina',.8,'8 tortillas de harina'],['jamon',1,'250 g de jamón'],['queso',.5,'200 g de queso Oaxaca']],pasos:['Pon jamón y queso entre dos tortillas.','Dora en comal por ambos lados hasta que se derrita el queso.','Corta en triángulos.']},
+ {id:'quesadillas',n:'Quesadillas con guacamole',em:'🫓',tipo:['n'],min:15,ing:[['tortilla',.4,'12 tortillas'],['queso',.6,'240 g de queso Oaxaca'],['aguacate',.25,'2 aguacates'],['limon',.05,'1 limón'],['cebolla',.05,'¼ de cebolla']],pasos:['Rellena tortillas con queso y calienta en comal.','Machaca aguacate con limón, cebolla y sal.','Sirve las quesadillas con el guacamole.']},
+ {id:'fideo',n:'Sopa de fideo',em:'🍜',tipo:['c'],min:25,ing:[['fideo',1,'200 g de fideo'],['pure',1,'1 puré de tomate'],['consome',.17,'2 cubos de consomé'],['cebolla',.05,'¼ de cebolla'],['ajo',.1,'1 diente de ajo'],['aceite',.03,'2 cdas de aceite'],['panela',.25,'queso para servir']],pasos:['Dora el fideo en aceite sin quemarlo.','Licúa puré, cebolla y ajo con 1 taza de agua; viértelo.','Agrega 1 L de agua y el consomé; hierve 10 minutos.','Sirve con queso en cubitos.']},
+ {id:'pollosverde',n:'Pollo en salsa verde con arroz',em:'🍗',tipo:['c'],min:45,ing:[['pollo',.8,'800 g de pollo'],['tomverde',.5,'500 g de tomate verde'],['serrano',.2,'3 chiles serranos'],['cebolla',.1,'½ cebolla'],['ajo',.1,'1 diente de ajo'],['arroz',.25,'1 taza de arroz'],['tortilla',.4,'tortillas']],pasos:['Cuece el pollo en agua con sal y cebolla 25 min.','Hierve tomate y chiles; licúa con ajo y un poco de caldo.','Fríe la salsa, agrega el pollo y deja 10 min.','Prepara arroz blanco y sirve juntos.']},
+ {id:'tinga',n:'Tostadas de tinga',em:'🥙',tipo:['c','n'],min:40,ing:[['pollo',.6,'600 g de pollo'],['jitomate',.5,'4 jitomates'],['cebolla',.3,'1½ cebollas'],['chipotle',.5,'3 chiles chipotle'],['tostadas',.4,'12 tostadas'],['crema',.3,'crema'],['lechuga',.5,'½ lechuga']],pasos:['Cuece y deshebra el pollo.','Licúa jitomate con chipotle.','Acitrona cebolla en rajas, agrega la salsa y el pollo; cocina 10 min.','Sirve sobre tostadas con lechuga y crema.']},
+ {id:'picadillo',n:'Picadillo con papa y zanahoria',em:'🥘',tipo:['c'],min:35,ing:[['molida',.5,'500 g de carne molida'],['papa',.5,'3 papas'],['zanahoria',.25,'2 zanahorias'],['jitomate',.3,'3 jitomates'],['cebolla',.1,'½ cebolla'],['arroz',.25,'1 taza de arroz'],['tortilla',.4,'tortillas']],pasos:['Pica papa y zanahoria en cubitos.','Dora la carne con cebolla.','Agrega jitomate licuado y las verduras; tapa 15 min.','Sirve con arroz y tortillas.']},
+ {id:'espagueti',n:'Espagueti rojo',em:'🍝',tipo:['c'],min:25,ing:[['espagueti',2,'400 g de espagueti'],['pure',2,'2 purés de tomate'],['crema',.5,'225 ml de crema'],['panela',.25,'queso para servir'],['ajo',.1,'1 diente de ajo'],['cebolla',.05,'¼ de cebolla']],pasos:['Cuece la pasta en agua con sal y escúrrela.','Licúa puré, crema, ajo y cebolla.','Calienta la salsa 5 min y mezcla con la pasta.','Sirve con queso.']},
+ {id:'tostatun',n:'Tostadas de atún',em:'🐟',tipo:['c','n'],min:15,ing:[['atun',2,'2 latas de atún'],['mayonesa',.25,'4 cdas de mayonesa'],['jitomate',.2,'2 jitomates'],['cebolla',.1,'½ cebolla'],['aguacate',.2,'1 aguacate'],['tostadas',.4,'12 tostadas'],['limon',.1,'2 limones']],pasos:['Escurre el atún.','Mezcla con jitomate, cebolla picada, mayonesa y limón.','Sirve sobre tostadas con aguacate.']},
+ {id:'calabacitas',n:'Calabacitas con queso',em:'🥒',tipo:['c'],min:25,ing:[['calabacita',.75,'750 g de calabacita'],['jitomate',.25,'2 jitomates'],['cebolla',.1,'½ cebolla'],['panela',.5,'200 g de queso'],['arroz',.25,'1 taza de arroz'],['tortilla',.4,'tortillas']],pasos:['Pica todo en cubos.','Sofríe cebolla, agrega jitomate y calabacita.','Tapa 10 min, añade el queso al final.','Sirve con arroz y tortillas.']},
+ {id:'salchimex',n:'Salchichas a la mexicana',em:'🌭',tipo:['d','c','n'],min:15,ing:[['salchicha',1,'500 g de salchicha'],['jitomate',.3,'3 jitomates'],['cebolla',.15,'½ cebolla'],['serrano',.1,'2 chiles'],['frijol',.2,'frijoles de olla'],['tortilla',.4,'tortillas']],pasos:['Corta las salchichas en rodajas y dóralas.','Agrega cebolla, chile y jitomate picados.','Cocina 5 min y sirve con frijoles.']},
+ {id:'enfrijoladas',n:'Enfrijoladas',em:'🫘',tipo:['c','n'],min:25,ing:[['frijol',.35,'frijoles cocidos'],['tortilla',.5,'16 tortillas'],['panela',.4,'queso'],['crema',.3,'crema'],['cebolla',.1,'cebolla'],['aceite',.05,'aceite']],pasos:['Licúa los frijoles con su caldo hasta una salsa espesa.','Pasa las tortillas por aceite caliente y luego por la salsa.','Dobla, cubre con más salsa, queso, crema y cebolla.']},
+ {id:'nopales',n:'Nopales con huevo',em:'🌵',tipo:['d','c'],min:20,ing:[['nopales',.5,'500 g de nopales'],['huevo',.35,'6 huevos'],['jitomate',.2,'2 jitomates'],['cebolla',.1,'½ cebolla'],['tortilla',.4,'tortillas']],pasos:['Cuece los nopales picados y enjuágalos.','Sofríe cebolla y jitomate, agrega nopales.','Incorpora los huevos batidos y cocina.','Sirve con tortillas.']},
+ {id:'caldo',n:'Caldo de pollo con verduras',em:'🍲',tipo:['c'],min:50,ing:[['pollo',.8,'800 g de pollo'],['papa',.3,'2 papas'],['zanahoria',.3,'2 zanahorias'],['calabacita',.3,'2 calabacitas'],['arroz',.15,'½ taza de arroz'],['consome',.17,'2 cubos de consomé'],['limon',.1,'limones'],['tortilla',.4,'tortillas']],pasos:['Hierve el pollo con cebolla, ajo y consomé 30 min.','Agrega papa, zanahoria y arroz; 10 min.','Añade la calabacita; 5 min más.','Sirve con limón y tortillas.']},
+ {id:'chilaquiles',n:'Chilaquiles verdes',em:'🌶️',tipo:['d','n'],min:25,ing:[['tortilla',.5,'16 tortillas en triángulos'],['tomverde',.4,'400 g de tomate verde'],['serrano',.15,'3 chiles serranos'],['cebolla',.1,'½ cebolla'],['crema',.3,'crema'],['panela',.3,'queso'],['aceite',.05,'aceite']],pasos:['Fríe los triángulos de tortilla hasta que estén doraditos y escúrrelos.','Hierve tomate y chiles; licúa con cebolla y sal.','Fríe la salsa 5 min, agrega los totopos y mezcla.','Sirve con crema, queso y cebolla.']},
+ {id:'huevojamon',n:'Huevo con jamón',em:'🍳',tipo:['d'],min:10,ing:[['huevo',.35,'6 huevos'],['jamon',.5,'125 g de jamón'],['aceite',.02,'aceite'],['tortilla',.4,'tortillas'],['frijol',.15,'frijoles']],pasos:['Pica el jamón y dóralo en el sartén.','Agrega los huevos batidos y revuelve hasta que cuajen.','Sirve con frijoles y tortillas.']},
+ {id:'huevochorizo',n:'Huevo con chorizo',em:'🥓',tipo:['d','n'],min:15,ing:[['huevo',.35,'6 huevos'],['chorizo',1,'250 g de chorizo'],['tortilla',.4,'tortillas'],['frijol',.15,'frijoles']],pasos:['Fríe el chorizo desmenuzado sin aceite extra.','Agrega los huevos batidos y revuelve.','Sirve con tortillas y frijoles.']},
+ {id:'rancheros',n:'Huevos rancheros',em:'🍳',tipo:['d','n'],min:20,ing:[['huevo',.35,'6 huevos'],['tortilla',.4,'12 tortillas'],['jitomate',.3,'3 jitomates'],['serrano',.1,'2 chiles serranos'],['cebolla',.1,'½ cebolla'],['frijol',.15,'frijoles'],['aceite',.04,'aceite']],pasos:['Licúa jitomate, chile y cebolla; cuécela en sartén 5 min.','Fríe los huevos estrellados.','Calienta las tortillas, pon el huevo encima y baña con la salsa.','Acompaña con frijoles.']},
+ {id:'tostadaguac',n:'Pan tostado con aguacate y huevo',em:'🥑',tipo:['d','n'],min:10,ing:[['pancaja',.4,'8 rebanadas de pan'],['aguacate',.25,'2 aguacates'],['huevo',.25,'4 huevos'],['limon',.05,'1 limón']],pasos:['Tuesta el pan.','Machaca el aguacate con limón y sal; úntalo.','Coloca encima un huevo estrellado o cocido.']},
+ {id:'cereal',n:'Cereal con yogurt y manzana',em:'🥣',tipo:['d'],min:5,ing:[['cereal',.5,'250 g de cereal'],['yogurt',.5,'500 ml de yogurt'],['manzana',.3,'2 manzanas']],pasos:['Pica la manzana.','Sirve el cereal con yogurt y manzana encima.']},
+ {id:'frutayogurt',n:'Yogurt con avena y fruta',em:'🍌',tipo:['d'],min:5,ing:[['yogurt',.5,'500 ml de yogurt'],['avena',.25,'1 taza de avena'],['platano',.3,'2 plátanos'],['manzana',.2,'1 manzana']],pasos:['Mezcla el yogurt con la avena.','Agrega la fruta picada y sirve.']},
+ {id:'papachorizo',n:'Papas con chorizo',em:'🥔',tipo:['d','c','n'],min:25,ing:[['papa',.6,'600 g de papa'],['chorizo',1,'250 g de chorizo'],['cebolla',.1,'½ cebolla'],['tortilla',.4,'tortillas']],pasos:['Cuece la papa en cubos hasta que esté suave.','Fríe el chorizo con la cebolla.','Mezcla con la papa y cocina 5 min.','Sirve en tacos o con tortillas.']},
+ {id:'frijolescharros',n:'Frijoles charros',em:'🫘',tipo:['c'],min:50,ing:[['frijol',.5,'frijoles cocidos (½ kg)'],['salchicha',.5,'250 g de salchicha'],['tocino',.5,'100 g de tocino'],['jitomate',.3,'3 jitomates'],['cebolla',.15,'1 cebolla'],['serrano',.1,'2 chiles serranos'],['tortilla',.4,'tortillas']],pasos:['Cuece los frijoles en olla hasta que estén suaves.','Fríe el tocino y la salchicha picados.','Agrega jitomate, cebolla y chile picados.','Incorpora los frijoles con su caldo y hierve 10 min.']},
+ {id:'lentejas',n:'Sopa de lentejas',em:'🍛',tipo:['c'],min:40,ing:[['lenteja',1,'500 g de lentejas'],['zanahoria',.2,'1 zanahoria'],['papa',.2,'1 papa'],['tocino',.4,'80 g de tocino'],['jitomate',.2,'2 jitomates'],['cebolla',.1,'½ cebolla'],['tortilla',.4,'tortillas']],pasos:['Enjuaga las lentejas.','Fríe tocino y cebolla; agrega jitomate licuado.','Añade las lentejas, la zanahoria y la papa picadas con 1½ L de agua.','Cocina 30 min hasta que estén suaves.']},
+ {id:'garbanzos',n:'Garbanzos guisados',em:'🥘',tipo:['c'],min:45,ing:[['garbanzo',1,'500 g de garbanzo'],['jitomate',.3,'3 jitomates'],['cebolla',.15,'1 cebolla'],['ajo',.1,'1 diente de ajo'],['zanahoria',.2,'1 zanahoria'],['arroz',.25,'1 taza de arroz']],pasos:['Remoja el garbanzo desde la noche y cuécelo hasta que ablande.','Licúa jitomate, cebolla y ajo; fríe la salsa.','Agrega los garbanzos y la zanahoria; hierve 10 min.','Sirve con arroz.']},
+ {id:'arrozhuevo',n:'Arroz rojo con huevo y plátano',em:'🍚',tipo:['c'],min:30,ing:[['arroz',.5,'2 tazas de arroz'],['pure',1,'1 puré de tomate'],['huevo',.3,'5 huevos'],['platano',.3,'2 plátanos machos o tabasco'],['cebolla',.05,'¼ de cebolla'],['aceite',.05,'aceite']],pasos:['Fríe el arroz en aceite hasta que se dore.','Licúa el puré con cebolla y agrégalo con 4 tazas de agua.','Tapa a fuego bajo 20 min.','Sirve con huevo estrellado y plátano frito.']},
+ {id:'tacospapa',n:'Tacos dorados de papa',em:'🌮',tipo:['c','n'],min:35,ing:[['papa',.6,'600 g de papa'],['tortilla',.5,'16 tortillas'],['queso',.25,'100 g de queso'],['lechuga',.5,'½ lechuga'],['crema',.3,'crema'],['aceite',.08,'aceite']],pasos:['Cuece y machaca la papa con sal y queso.','Rellena las tortillas y enróllalas.','Fríelas hasta que estén doradas.','Sirve con lechuga y crema.']},
+ {id:'tacospollo',n:'Tacos dorados de pollo',em:'🌮',tipo:['c','n'],min:40,ing:[['pollo',.6,'600 g de pollo'],['tortilla',.5,'16 tortillas'],['lechuga',.5,'½ lechuga'],['crema',.3,'crema'],['panela',.3,'queso'],['aceite',.08,'aceite']],pasos:['Cuece y deshebra el pollo; sazona con sal.','Rellena las tortillas y enróllalas con palillo.','Fríelas hasta que doren.','Sirve con lechuga, crema y queso.']},
+ {id:'enchiverdes',n:'Enchiladas verdes',em:'🫔',tipo:['c','n'],min:40,ing:[['tortilla',.5,'16 tortillas'],['pollo',.4,'400 g de pollo'],['tomverde',.5,'500 g de tomate verde'],['serrano',.15,'3 chiles serranos'],['crema',.3,'crema'],['queso',.25,'100 g de queso'],['cebolla',.1,'½ cebolla']],pasos:['Cuece y deshebra el pollo.','Hierve y licúa tomate con chile, cebolla y sal.','Pasa las tortillas por aceite, rellénalas y baña con salsa.','Cubre con crema, queso y cebolla.']},
+ {id:'pechugaensalada',n:'Pechuga a la plancha con ensalada',em:'🥗',tipo:['c','n'],min:25,ing:[['pechuga',.7,'700 g de pechuga'],['lechuga',.7,'1 lechuga'],['jitomate',.2,'2 jitomates'],['pepino',0,'pepino opcional'],['limon',.1,'2 limones'],['aceite',.03,'aceite']].filter(x=>x[1]>0),pasos:['Sazona la pechuga con sal, limón y ajo.','Cocínala en sartén caliente 5 min por lado.','Arma la ensalada con lechuga, jitomate y limón.','Sirve juntos.']},
+ {id:'bistecmex',n:'Bistec a la mexicana',em:'🥩',tipo:['c'],min:30,ing:[['bistec',.5,'500 g de bistec'],['jitomate',.3,'3 jitomates'],['cebolla',.15,'1 cebolla'],['serrano',.1,'2 chiles serranos'],['arroz',.25,'1 taza de arroz'],['frijol',.15,'frijoles'],['tortilla',.4,'tortillas']],pasos:['Corta el bistec en tiras y dóralo.','Agrega cebolla, chile y jitomate picados.','Tapa y cocina 10 min.','Sirve con arroz, frijoles y tortillas.']},
+ {id:'chuletasverde',n:'Chuletas en salsa verde',em:'🍖',tipo:['c'],min:40,ing:[['chuleta',.6,'600 g de chuleta'],['tomverde',.5,'500 g de tomate verde'],['serrano',.15,'3 chiles serranos'],['ajo',.1,'1 diente de ajo'],['arroz',.25,'1 taza de arroz'],['tortilla',.4,'tortillas']],pasos:['Dora las chuletas con sal.','Hierve y licúa tomate, chile y ajo.','Agrega la salsa y cocina tapado 20 min.','Sirve con arroz.']},
+ {id:'molepollo',n:'Mole con pollo y arroz',em:'🍗',tipo:['c'],min:55,ing:[['pollo',.8,'800 g de pollo'],['mole',.5,'½ frasco de mole'],['arroz',.25,'1 taza de arroz'],['consome',.17,'2 cubos de consomé'],['tortilla',.4,'tortillas']],pasos:['Cuece el pollo en agua con consomé.','Disuelve el mole en 3 tazas del caldo caliente.','Hierve el pollo en el mole 15 min.','Sirve con arroz y tortillas.']},
+ {id:'albondigas',n:'Albóndigas en caldillo',em:'🍲',tipo:['c'],min:50,ing:[['molida',.5,'500 g de carne molida'],['arroz',.15,'½ taza de arroz crudo'],['huevo',.06,'1 huevo'],['jitomate',.3,'3 jitomates'],['zanahoria',.2,'1 zanahoria'],['papa',.3,'2 papas'],['cebolla',.1,'½ cebolla']],pasos:['Mezcla carne, arroz, huevo y sal; forma bolitas.','Licúa jitomate con cebolla y hierve con 1 L de agua.','Agrega las albóndigas, papa y zanahoria.','Cocina 30 min.']},
+ {id:'macatun',n:'Macarrones con atún',em:'🍝',tipo:['c','n'],min:20,ing:[['codo',2,'400 g de pasta codo'],['atun',2,'2 latas de atún'],['pure',1,'1 puré de tomate'],['cebolla',.1,'½ cebolla'],['ajo',.1,'1 diente de ajo'],['panela',.25,'queso para servir']],pasos:['Cuece la pasta y escúrrela.','Licúa puré con cebolla y ajo; cocínalo 5 min.','Agrega el atún y la pasta.','Sirve con queso.']},
+ {id:'rajas',n:'Rajas con crema y elote',em:'🫑',tipo:['c','n'],min:25,ing:[['poblano',.5,'250 g de chile poblano'],['crema',.5,'225 ml de crema'],['maiz',1,'1 lata de elote'],['cebolla',.15,'1 cebolla'],['queso',.25,'100 g de queso'],['tortilla',.4,'tortillas']],pasos:['Asa los chiles, pélalos y córtalos en rajas.','Fríe la cebolla en rodajas; agrega rajas y elote.','Incorpora la crema y cocina 5 min.','Sirve con queso y tortillas.']},
+ {id:'ensaladapollo',n:'Ensalada de pollo con manzana',em:'🥗',tipo:['n'],min:20,ing:[['pechuga',.4,'400 g de pechuga cocida'],['manzana',.2,'1 manzana'],['zanahoria',.15,'1 zanahoria'],['mayonesa',.25,'4 cdas de mayonesa'],['lechuga',.5,'½ lechuga'],['tostadas',.4,'tostadas']],pasos:['Cuece y deshebra la pechuga.','Mezcla con manzana y zanahoria rallada y mayonesa.','Sirve sobre lechuga o tostadas.']},
+ {id:'caldores',n:'Caldo de res',em:'🍲',tipo:['c'],min:75,ing:[['res',.8,'800 g de carne de res'],['papa',.3,'2 papas'],['zanahoria',.3,'2 zanahorias'],['chayote',.3,'2 chayotes'],['calabacita',.3,'2 calabacitas'],['cebolla',.1,'½ cebolla'],['limon',.1,'limones'],['tortilla',.4,'tortillas']],pasos:['Cuece la carne con cebolla y sal 50 min.','Agrega papa, zanahoria y chayote; 15 min.','Añade la calabacita; 5 min más.','Sirve con limón y tortillas.']},
+ {id:'cremabrocoli',n:'Crema de brócoli',em:'🥦',tipo:['c','n'],min:30,ing:[['brocoli',1,'1 brócoli'],['papa',.3,'2 papas'],['leche',.4,'400 ml de leche'],['cebolla',.1,'½ cebolla'],['consome',.17,'2 cubos de consomé'],['pancaja',.2,'pan tostado']],pasos:['Hierve brócoli, papa y cebolla con el consomé 15 min.','Licúa con la leche.','Regresa a la olla y calienta 5 min.','Sirve con pan tostado.']},
+ {id:'tortitaspapa',n:'Tortitas de papa en salsa roja',em:'🥔',tipo:['c','n'],min:40,ing:[['papa',.7,'700 g de papa'],['huevo',.2,'3 huevos'],['queso',.25,'100 g de queso'],['pure',1,'1 puré de tomate'],['cebolla',.05,'¼ de cebolla'],['aceite',.06,'aceite']],pasos:['Cuece y machaca la papa; mezcla con queso, huevo y sal.','Forma tortitas y fríelas hasta que doren.','Licúa el puré con cebolla; hierve 5 min.','Baña las tortitas con la salsa.']},
+ {id:'tacoschicharron',n:'Chicharrón en salsa verde',em:'🌮',tipo:['c'],min:25,ing:[['chicharron',1,'250 g de chicharrón'],['tomverde',.5,'500 g de tomate verde'],['serrano',.15,'3 chiles serranos'],['cebolla',.1,'½ cebolla'],['tortilla',.5,'tortillas'],['frijol',.15,'frijoles']],pasos:['Hierve y licúa tomate, chile y cebolla.','Hierve la salsa 5 min y agrega el chicharrón en trozos.','Cocina 8 min hasta que ablande.','Sirve en tacos con frijoles.']},
+ {id:'tostadasfrijol',n:'Tostadas de frijol',em:'🫘',tipo:['n'],min:10,ing:[['tostadas',.4,'12 tostadas'],['frijol',.2,'frijoles refritos'],['lechuga',.4,'lechuga'],['crema',.25,'crema'],['panela',.3,'queso'],['aguacate',.2,'1 aguacate']],pasos:['Unta frijoles en cada tostada.','Agrega lechuga, crema, queso y aguacate.']},
+ {id:'hamburguesas',n:'Hamburguesas caseras',em:'🍔',tipo:['c','n'],min:30,ing:[['molida',.5,'500 g de carne molida'],['bolillo',4,'4 bolillos'],['queso',.25,'100 g de queso'],['lechuga',.4,'lechuga'],['jitomate',.2,'2 jitomates'],['cebolla',.1,'½ cebolla'],['mayonesa',.15,'mayonesa'],['papa',.4,'papas a la francesa']],pasos:['Sazona la carne con sal y forma 4 tortas.','Dóralas 4 min por lado y cubre con queso.','Calienta el pan y arma con lechuga, jitomate y mayonesa.','Fríe papas en bastones y sirve.']},
+ {id:'hotdogs',n:'Hot dogs',em:'🌭',tipo:['n'],min:15,ing:[['salchicha',1,'500 g de salchicha'],['bolillo',4,'4 bolillos'],['mayonesa',.15,'mayonesa'],['jitomate',.15,'1 jitomate'],['cebolla',.1,'½ cebolla']],pasos:['Cuece o dora las salchichas.','Abre los bolillos y calienta.','Arma con mayonesa, jitomate y cebolla picados.']},
+ {id:'sopatortilla',n:'Sopa de tortilla',em:'🥣',tipo:['c'],min:35,ing:[['tortilla',.4,'tortillas en tiras'],['jitomate',.5,'4 jitomates'],['consome',.17,'2 cubos de consomé'],['cebolla',.1,'½ cebolla'],['ajo',.1,'1 diente de ajo'],['aguacate',.2,'1 aguacate'],['panela',.3,'queso'],['crema',.25,'crema'],['aceite',.06,'aceite']],pasos:['Fríe las tiras de tortilla hasta que doren y escúrrelas.','Licúa jitomate, cebolla y ajo; fríe la salsa.','Agrega 1½ L de agua y consomé; hierve 15 min.','Sirve con tortilla, aguacate, queso y crema.']},
+ {id:'sandwich',n:'Sándwiches de jamón',em:'🥪',tipo:['n'],min:10,ing:[['pancaja',.4,'8 rebanadas de pan'],['jamon',1,'250 g de jamón'],['panela',.4,'queso'],['mayonesa',.15,'mayonesa'],['jitomate',.15,'1 jitomate'],['lechuga',.3,'lechuga']],pasos:['Unta mayonesa al pan.','Arma con jamón, queso, jitomate y lechuga.','Dóralos en sartén si los quieres calientes.']},
+];
+const TIPOS={d:'Desayuno',c:'Comida',n:'Cena'};
+const DIAS=[['lun','Lunes'],['mar','Martes'],['mie','Miércoles'],['jue','Jueves'],['vie','Viernes'],['sab','Sábado'],['dom','Domingo']];
+const CATS={super:['🛒','Súper'],mercado:['🥬','Mercado'],tortilla:['🫓','Tortillería'],fuera:['🍽️','Comida fuera'],otros:['📦','Otros']};
+
+/* ===================== ESTADO ===================== */
+const KEY='comida-estado-v1';
+function defState(){return {v:1,presupuesto:6000,personas:2,gastos:[],menu:{},lista:[],precios:{},
+  tema:'clasico',opac:72,acento:null,
+  fijos:[{id:'fx1',n:'Internet',em:'🌐',monto:500,dia:1,pagos:{}},{id:'fx2',n:'Gas',em:'🔥',monto:500,dia:1,pagos:{}}]}}
+let S=defState();
+function merge(o){const d=defState();return Object.assign(d,o||{})}
+try{const r=localStorage.getItem(KEY);if(r)S=merge(JSON.parse(r))}catch(e){}
+
+/* ===================== TEMAS ===================== */
+const TEMAS={
+ clasico:{n:'Clásico',em:'🍅',pv:'linear-gradient(135deg,#F4E6D2,#E9B44C 55%,#D9472B)'},
+ minecraft:{n:'Minecraft',em:'⛏️',pv:'conic-gradient(#7a5434 25%,#6b4a2b 0 50%,#7a5434 0 75%,#5f4126 0) 0 0/16px 16px'},
+ noche:{n:'Noche',em:'🌙',pv:'linear-gradient(135deg,#0d1220,#5b45d6 60%,#288cff)'},
+ oceano:{n:'Océano',em:'🌊',pv:'linear-gradient(135deg,#13a3c4,#1668b0 55%,#0b2a63)'},
+ atardecer:{n:'Atardecer',em:'🌇',pv:'linear-gradient(135deg,#ff9a5a,#ea5273 55%,#5b2a86)'},
+ sakura:{n:'Sakura',em:'🌸',pv:'linear-gradient(135deg,#ffe3ee,#ffc2d8 55%,#c9a4ff)'},
+ bosque:{n:'Bosque',em:'🌲',pv:'linear-gradient(135deg,#2f7a4a,#1d5a37 55%,#123a26)'},
+};
+function aplicarTema(){
+  const r=document.documentElement;
+  if(!TEMAS[S.tema])S.tema='clasico';
+  r.dataset.theme=S.tema;
+  const op=Math.min(100,Math.max(25,+S.opac||72));
+  r.style.setProperty('--alpha',op/100);
+  if(S.acento){r.style.setProperty('--tomato',S.acento);r.style.setProperty('--tomato-soft','color-mix(in srgb,'+S.acento+' 18%,transparent)')}
+  else{r.style.removeProperty('--tomato');r.style.removeProperty('--tomato-soft')}
+  const he=document.getElementById('hEm');if(he)he.textContent=TEMAS[S.tema].em+' ';
+}
+aplicarTema();
+
+let docRef=null,loaded=false,editedEarly=false,saveT=null,saving=false,again=false;
+function setSync(kind,txt){const el=document.getElementById('sync');el.className='sync '+(kind||'');el.querySelector('span').textContent=txt}
+function persist(){
+  try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
+  if(!loaded){editedEarly=true;return}
+  if(!docRef)return;
+  clearTimeout(saveT);setSync('','Guardando…');saveT=setTimeout(flush,1000);
+}
+async function flush(){
+  if(!docRef)return;
+  if(saving){again=true;return}
+  saving=true;
+  try{await docRef.set({json:JSON.stringify(S),at:Date.now()});setSync('ok','Guardado')}
+  catch(e){
+    if(e&&e.code==='unavailable'){await new Promise(r=>setTimeout(r,800+Math.random()*800));try{await docRef.set({json:JSON.stringify(S),at:Date.now()});setSync('ok','Guardado')}catch(e2){setSync('err','Solo en este equipo')}}
+    else setSync('err','Solo en este equipo');
+  }
+  saving=false;if(again){again=false;flush()}
+}
+async function initCloud(){
+  setSync('','Conectando…');
+  try{
+    if(!window.claude||!window.claude.use){setSync('','Solo en este equipo');loaded=true;return}
+    const [db,user]=await Promise.all([window.claude.use('db'),window.claude.use('user')]);
+    const uid=user?await user.id():null;
+    if(!db||!uid){setSync('','Solo en este equipo');loaded=true;return}
+    docRef=db.doc('data/users/'+uid+'/estado');
+    const timer=setTimeout(()=>setSync('err','Sin conexión'),10000);
+    const snap=await docRef.get();clearTimeout(timer);
+    if(snap.exists&&!editedEarly){const d=snap.data();if(d&&d.json){try{S=merge(JSON.parse(d.json));try{localStorage.setItem(KEY,d.json)}catch(e){}}catch(e){}}}
+    loaded=true;setSync('ok','En la nube');aplicarTema();render();
+    if(editedEarly||!snap.exists)flush();
+  }catch(e){loaded=true;docRef=null;setSync('','Solo en este equipo')}
+}
+
+/* ===================== UTILIDADES ===================== */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN',maximumFractionDigits:0});
+const fmt2=new Intl.NumberFormat('es-MX',{style:'currency',currency:'MXN',minimumFractionDigits:0,maximumFractionDigits:2});
+const money=n=>fmt.format(Math.round(n||0));
+const pad=n=>String(n).padStart(2,'0');
+const isoDate=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const hoy=()=>isoDate(new Date());
+const uid=()=>Math.random().toString(36).slice(2,10);
+const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+function precio(pid){const o=S.precios[pid];return o&&o.p!=null?+o.p:(PROD[pid]?PROD[pid].p:0)}
+function tienda(pid){const o=S.precios[pid];return o&&o.t?o.t:(PROD[pid]?PROD[pid].t:'Otra')}
+const factor=()=>Math.max(1,+S.personas||1)/4;
+const R=Object.fromEntries(RECETAS.map(r=>[r.id,r]));
+function costoReceta(r){return r.ing.reduce((s,[p,q])=>s+q*precio(p),0)*factor()}
+function toast(t){const el=$('#toast');el.textContent=t;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),1800)}
+function mesKey(d){return d.slice(0,7)}
+let mesVista=hoy().slice(0,7);
+function gastosMes(m){return S.gastos.filter(g=>mesKey(g.fecha)===m)}
+function nombreMes(m){const [y,mo]=m.split('-');return MESES[+mo-1]+' '+y}
+function costoMenuSemana(){let t=0;for(const [k] of DIAS){const d=S.menu[k]||{};for(const ti in TIPOS){if(d[ti]&&R[d[ti]])t+=costoReceta(R[d[ti]])}}return t}
+const presSemana=()=>(+S.presupuesto||0)*12/52;
+const itemCost=i=>(+i.precio||0)*(+i.cant||0);
+
+/* ===================== VISTAS ===================== */
+let tab='inicio',filtroTipo='todas',busca='';
+function render(){
+  const v={inicio:vInicio,menu:vMenu,recetas:vRecetas,lista:vLista,gastos:vGastos,fijos:vFijos,ajustes:vAjustes}[tab]||vInicio;
+  $('#app').innerHTML=v();
+  document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',a.dataset.tab===tab));
+  const pend=S.lista.filter(i=>!i.hecho).length;
+  const la=document.querySelector('nav a[data-tab="lista"]');
+  la.querySelector('.dot')?.remove();
+  if(pend)la.insertAdjacentHTML('beforeend',`<span class="dot">${pend}</span>`);
+}
+
+function resumenMes(m){
+  const gastado=gastosMes(m).reduce((s,g)=>s+(+g.monto||0),0);
+  const pres=+S.presupuesto||0, rest=pres-gastado, pct=pres?gastado/pres*100:0;
+  return {gastado,pres,rest,pct};
+}
+
+function vInicio(){
+  const m=hoy().slice(0,7),{gastado,pres,rest,pct}=resumenMes(m);
+  const now=new Date(),dim=new Date(now.getFullYear(),now.getMonth()+1,0).getDate(),dl=dim-now.getDate()+1;
+  const porDia=rest>0?rest/dl:0;
+  const cls=pct>100?'over':pct>80?'warn':'';
+  const dk=DIAS[(now.getDay()+6)%7];
+  const md=S.menu[dk[0]]||{};
+  const pend=S.lista.filter(i=>!i.hecho),pendCost=pend.reduce((s,i)=>s+itemCost(i),0);
+  const porCat={};gastosMes(m).forEach(g=>porCat[g.cat]=(porCat[g.cat]||0)+(+g.monto||0));
+  const maxCat=Math.max(1,...Object.values(porCat));
+  return `
+  <div class="card">
+    <div class="row between"><span class="muted small" style="text-transform:capitalize">${nombreMes(m)}</span><button class="btn sm alt" data-act="editPres">Presupuesto ${money(pres)}</button></div>
+    <div style="margin-top:10px" class="muted small">Te queda</div>
+    <div class="big" style="color:${rest<0?'var(--tomato)':'inherit'}">${money(rest)}</div>
+    <div class="bar ${cls}"><div style="width:${Math.min(100,pct)}%"></div></div>
+    <div class="stats">
+      <div class="stat"><span class="tiny muted">Gastado</span><b>${money(gastado)}</b></div>
+      <div class="stat"><span class="tiny muted">Días restantes</span><b>${dl}</b></div>
+      <div class="stat"><span class="tiny muted">Por día</span><b>${money(porDia)}</b></div>
+    </div>
+    <button class="btn block red" style="margin-top:12px" data-act="nuevoGasto">+ Registrar gasto</button>
+  </div>
+
+  <div class="sec-title"><h2>Hoy · ${dk[1]}</h2><a class="small ext" href="#menu">Ver semana</a></div>
+  <div class="card day" style="margin-top:6px">
+    ${Object.keys(TIPOS).map(t=>slotHTML(dk[0],t,md[t])).join('')}
+  </div>
+
+  <div class="sec-title"><h2>Lista de compra</h2><a class="small ext" href="#lista">Abrir</a></div>
+  <div class="card row between">
+    <div><b>${pend.length}</b> <span class="muted">por comprar</span><div class="small muted">Estimado ${money(pendCost)}</div></div>
+    <button class="btn sm alt" data-act="listaDesdeMenu">Generar desde menú</button>
+  </div>
+
+  ${(()=>{const mf=hoy().slice(0,7),pf=S.fijos.filter(f=>!(f.pagos&&f.pagos[mf])),tp=pf.reduce((s,f)=>s+(+f.monto||0),0);
+    return `<div class="sec-title"><h2>Pagos del mes</h2><a class="small ext" href="#fijos">Ver</a></div>
+    <div class="card row between"><div><b>${pf.length}</b> <span class="muted">por pagar</span><div class="small muted">${pf.length?money(tp)+' pendientes':'Todo pagado 🎉'}</div></div><button class="btn sm alt" data-go="fijos">Gastos mensuales</button></div>`})()}
+
+  <div class="sec-title"><h2>En qué se va</h2></div>
+  <div class="card">
+    ${Object.keys(porCat).length?Object.entries(porCat).sort((a,b)=>b[1]-a[1]).map(([c,v])=>`
+      <div class="catbar"><span>${(CATS[c]||CATS.otros)[0]} ${(CATS[c]||CATS.otros)[1]}</span><div class="bar"><div style="width:${v/maxCat*100}%"></div></div><b style="text-align:right">${money(v)}</b></div>`).join('')
+      :`<div class="empty-state small">Aún no registras gastos este mes.</div>`}
+  </div>`;
+}
+
+function slotHTML(dia,t,rid){
+  const r=rid&&R[rid];
+  return `<button class="slot ${r?'':'empty'}" data-act="pickSlot" data-dia="${dia}" data-tipo="${t}">
+    <span class="em">${r?r.em:'＋'}</span>
+    <span><div class="lbl">${TIPOS[t]}</div><div class="nm">${r?esc(r.n):'Elegir receta'}</div></span>
+    ${r?`<span class="cost">${money(costoReceta(r))}</span>`:''}
+  </button>`;
+}
+
+function vMenu(){
+  const total=costoMenuSemana(),ps=presSemana(),pct=ps?total/ps*100:0;
+  const td=(new Date().getDay()+6)%7;
+  return `
+  <div class="card">
+    <div class="row between"><div><div class="muted small">Costo estimado de la semana · ${S.personas} ${S.personas==1?'persona':'personas'}</div><div class="big">${money(total)}</div></div></div>
+    <div class="bar ${pct>100?'over':pct>85?'warn':''}"><div style="width:${Math.min(100,pct)}%"></div></div>
+    <div class="small muted">Presupuesto semanal aprox. ${money(ps)}</div>
+    <div class="btns" style="margin-top:12px">
+      <button class="btn" data-act="generar">✨ Generar menú</button>
+      <button class="btn green" data-act="listaDesdeMenu">🛒 Crear lista</button>
+    </div>
+  </div>
+  ${DIAS.map(([k,n],i)=>{const d=S.menu[k]||{};const c=Object.values(d).reduce((s,id)=>s+(R[id]?costoReceta(R[id]):0),0);
+    return `<div class="card day ${i===td?'today':''}"><h3>${n} ${i===td?'<span class="badge">Hoy</span>':`<span class="small muted" style="font-family:var(--fb);font-weight:500">${c?money(c):''}</span>`}</h3>
+    ${Object.keys(TIPOS).map(t=>slotHTML(k,t,d[t])).join('')}</div>`}).join('')}
+  <button class="btn alt block" data-act="limpiarMenu">Vaciar menú</button>`;
+}
+
+function vRecetas(){
+  const q=busca.trim().toLowerCase();
+  const list=RECETAS.filter(r=>(filtroTipo==='todas'||r.tipo.includes(filtroTipo))&&(!q||r.n.toLowerCase().includes(q)||r.ing.some(i=>PROD[i[0]].n.toLowerCase().includes(q))));
+  return `
+  <input class="search" id="busca" placeholder="Buscar receta o ingrediente (ej. pollo)" value="${esc(busca)}">
+  <div class="chips">${[['todas','Todas'],['d','Desayuno'],['c','Comida'],['n','Cena']].map(([k,l])=>`<button class="chip ${filtroTipo===k?'on':''}" data-act="filtro" data-k="${k}">${l}</button>`).join('')}
+  <button class="chip" data-act="baratas">💰 Más baratas</button></div>
+  <div class="rgrid">
+    ${list.map(r=>`<button class="rcard" data-act="verReceta" data-id="${r.id}">
+      <span class="em">${r.em}</span><b>${esc(r.n)}</b>
+      <span class="small muted">⏱ ${r.min} min · ${r.tipo.map(t=>TIPOS[t]).join(', ')}</span>
+      <span class="small"><b style="font-family:var(--fb);font-size:14px">${money(costoReceta(r))}</b> <span class="muted">· ${money(costoReceta(r)/Math.max(1,S.personas))}/porción</span></span>
+    </button>`).join('')||'<div class="empty-state">Sin resultados</div>'}
+  </div>`;
+}
+
+function vLista(){
+  const items=S.lista;
+  const pend=items.filter(i=>!i.hecho),done=items.filter(i=>i.hecho);
+  const groups={};items.forEach(i=>{(groups[i.tienda||'Otra']=groups[i.tienda||'Otra']||[]).push(i)});
+  const orden=[...TIENDAS,...Object.keys(groups).filter(t=>!TIENDAS.includes(t))];
+  return `
+  <div class="card">
+    <div class="stats" style="grid-template-columns:1fr 1fr">
+      <div class="stat"><span class="tiny muted">Por comprar (${pend.length})</span><b>${money(pend.reduce((s,i)=>s+itemCost(i),0))}</b></div>
+      <div class="stat"><span class="tiny muted">En el carrito (${done.length})</span><b>${money(done.reduce((s,i)=>s+itemCost(i),0))}</b></div>
+    </div>
+    <div class="btns" style="margin-top:12px">
+      <button class="btn sm alt" data-act="listaDesdeMenu">Desde menú</button>
+      <button class="btn sm alt" data-act="nuevoItem">+ Agregar</button>
+    </div>
+    ${done.length?`<button class="btn block green" style="margin-top:8px" data-act="registrarCompra">✓ Registrar compra (${money(done.reduce((s,i)=>s+itemCost(i),0))})</button>`:''}
+  </div>
+  ${items.length?orden.filter(t=>groups[t]).map(t=>`
+    <div class="card"><div class="store-h">${esc(t)}</div>
+    ${groups[t].sort((a,b)=>a.hecho-b.hecho||a.nombre.localeCompare(b.nombre)).map(i=>`
+      <div class="item ${i.hecho?'done':''}">
+        <input type="checkbox" class="check" data-act="toggle" data-id="${i.id}" ${i.hecho?'checked':''} aria-label="Marcar ${esc(i.nombre)}">
+        <div style="min-width:0"><div class="iname">${esc(i.nombre)}</div>
+          <div class="qty small muted"><button data-act="menos" data-id="${i.id}" aria-label="Menos">−</button><span>${+i.cant} × ${esc(i.pres||'pza')}</span><button data-act="mas" data-id="${i.id}" aria-label="Más">+</button></div></div>
+        <div class="price"><b>${money(itemCost(i))}</b><div class="tiny muted">${fmt2.format(+i.precio||0)} c/u</div></div>
+        <button class="x" data-act="delItem" data-id="${i.id}" aria-label="Quitar">×</button>
+      </div>`).join('')}
+    </div>`).join(''):`<div class="card empty-state"><div class="em">🧺</div><p>Tu lista está vacía.<br>Arma tu menú y genera la lista en un toque.</p></div>`}
+  ${done.length?`<button class="btn alt block" data-act="limpiarHechos">Quitar marcados sin registrar</button>`:''}
+  <p class="small muted" style="text-align:center;margin-top:16px">Precios estimados; ajústalos con tu ticket en ⚙️ Ajustes.<br>
+  <a class="ext" href="https://www.tiendas3b.com/tienda/" target="_blank" rel="noopener">Ver catálogo de Tiendas 3B ↗</a></p>`;
+}
+
+function vGastos(){
+  const gs=gastosMes(mesVista).sort((a,b)=>b.fecha.localeCompare(a.fecha)||b.creado-a.creado);
+  const {gastado,pres,rest,pct}=resumenMes(mesVista);
+  const byDay={};gs.forEach(g=>(byDay[g.fecha]=byDay[g.fecha]||[]).push(g));
+  return `
+  <div class="card">
+    <div class="row between">
+      <button class="iconbtn" data-act="mes" data-d="-1" aria-label="Mes anterior">‹</button>
+      <b style="text-transform:capitalize;font-family:var(--fh);font-size:18px">${nombreMes(mesVista)}</b>
+      <button class="iconbtn" data-act="mes" data-d="1" aria-label="Mes siguiente">›</button>
+    </div>
+    <div class="stats">
+      <div class="stat"><span class="tiny muted">Gastado</span><b>${money(gastado)}</b></div>
+      <div class="stat"><span class="tiny muted">Presupuesto</span><b>${money(pres)}</b></div>
+      <div class="stat"><span class="tiny muted">${rest<0?'Excedido':'Restante'}</span><b style="color:${rest<0?'var(--tomato)':'var(--green)'}">${money(Math.abs(rest))}</b></div>
+    </div>
+    <div class="bar ${pct>100?'over':pct>80?'warn':''}"><div style="width:${Math.min(100,pct)}%"></div></div>
+    <button class="btn block red" data-act="nuevoGasto">+ Registrar gasto</button>
+  </div>
+  ${gs.length?Object.entries(byDay).map(([f,arr])=>{const d=new Date(f+'T12:00');return `
+    <div class="sec-title"><h2 style="font-size:15px;text-transform:capitalize">${d.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'short'})}</h2><span class="small muted">${money(arr.reduce((s,g)=>s+(+g.monto||0),0))}</span></div>
+    <div class="card" style="margin-top:4px;padding:6px 14px">${arr.map(g=>`
+      <div class="gasto"><div class="gico">${(CATS[g.cat]||CATS.otros)[0]}</div>
+      <div style="flex:1;min-width:0"><b>${esc(g.tienda||(CATS[g.cat]||CATS.otros)[1])}</b><div class="small muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc((CATS[g.cat]||CATS.otros)[1])}${g.nota?' · '+esc(g.nota):''}</div></div>
+      <b>${fmt2.format(+g.monto||0)}</b><button class="x" data-act="delGasto" data-id="${g.id}" aria-label="Borrar">×</button></div>`).join('')}</div>`}).join('')
+  :`<div class="card empty-state"><div class="em">🧾</div><p>Sin gastos en este mes.</p></div>`}`;
+}
+
+
+let mesFijos=hoy().slice(0,7);
+const EMS_FIJO=['🌐','🔥','💡','💧','📱','🏠','📺','🚌','🎓','💊','🛡️','🐶','🎮','🧾'];
+function pagadoF(f,m){return !!(f.pagos&&f.pagos[m])}
+function badgeFijo(f,m){
+  if(pagadoF(f,m))return '<span class="badge ok">Pagado</span>';
+  const hm=hoy().slice(0,7);
+  if(m<hm)return '<span class="badge">Sin pagar</span>';
+  if(m>hm)return `<span class="badge warn">Día ${f.dia}</span>`;
+  const d=(+f.dia||1)-new Date().getDate();
+  if(d<0)return '<span class="badge">Vencido</span>';
+  if(d===0)return '<span class="badge">Hoy</span>';
+  if(d<=3)return `<span class="badge warn">En ${d} día${d>1?'s':''}</span>`;
+  return `<span class="badge warn">Día ${f.dia}</span>`;
+}
+function vFijos(){
+  const m=mesFijos,fs=S.fijos.slice().sort((a,b)=>(+a.dia||0)-(+b.dia||0));
+  const total=fs.reduce((s,f)=>s+(+f.monto||0),0),pagado=fs.filter(f=>pagadoF(f,m)).reduce((s,f)=>s+(+f.monto||0),0);
+  const pend=total-pagado,pct=total?pagado/total*100:0,comida=+S.presupuesto||0;
+  return `
+  <div class="card">
+    <div class="row between">
+      <button class="iconbtn" data-act="mesF" data-d="-1" aria-label="Mes anterior">‹</button>
+      <b style="text-transform:capitalize;font-family:var(--fh);font-size:18px">${nombreMes(m)}</b>
+      <button class="iconbtn" data-act="mesF" data-d="1" aria-label="Mes siguiente">›</button>
+    </div>
+    <div class="stats">
+      <div class="stat"><span class="tiny muted">Total fijos</span><b>${money(total)}</b></div>
+      <div class="stat"><span class="tiny muted">Pagado</span><b style="color:var(--green)">${money(pagado)}</b></div>
+      <div class="stat"><span class="tiny muted">Por pagar</span><b style="color:${pend>0?'var(--tomato)':'inherit'}">${money(pend)}</b></div>
+    </div>
+    <div class="bar"><div style="width:${Math.min(100,pct)}%"></div></div>
+    <button class="btn block red" data-act="nuevoFijo">+ Agregar gasto mensual</button>
+  </div>
+  <div class="card" style="padding:6px 14px">
+    ${fs.length?fs.map(f=>`
+      <div class="gasto"><input type="checkbox" class="check" data-act="togglePago" data-id="${f.id}" ${pagadoF(f,m)?'checked':''} aria-label="Marcar ${esc(f.n)} como pagado">
+        <button class="fx" data-act="editFijo" data-id="${f.id}"><b>${esc(f.em||'🧾')} ${esc(f.n)}</b><div class="small muted">Se paga el día ${f.dia} de cada mes</div></button>
+        <div style="text-align:right"><b>${fmt2.format(+f.monto||0)}</b><div>${badgeFijo(f,m)}</div></div></div>`).join('')
+    :`<div class="empty-state"><div class="em">🧾</div><p>Agrega tus pagos de cada mes: internet, gas, luz…</p></div>`}
+  </div>
+  <div class="card">
+    <div class="row between"><span class="muted">Comida (presupuesto)</span><b>${money(comida)}</b></div>
+    <div class="row between" style="margin-top:6px"><span class="muted">Gastos fijos</span><b>${money(total)}</b></div>
+    <div class="row between" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)"><b>Total planeado del mes</b><b style="font-size:18px">${money(comida+total)}</b></div>
+    <p class="small muted" style="margin:10px 0 0">Los gastos fijos van aparte del presupuesto de comida. Marca la casilla cuando pagues cada uno; se reinicia cada mes.</p>
+  </div>`;
+}
+function modalFijo(id){
+  const f=id?S.fijos.find(x=>x.id===id):null;
+  openModal(`<h2>${f?'Editar gasto mensual':'Nuevo gasto mensual'}</h2>
+  <form id="fFijo">
+    <label class="field"><span>Nombre</span><input name="n" required placeholder="Ej. Internet" value="${esc(f?f.n:'')}"></label>
+    <div class="grid2">
+      <label class="field"><span>Monto (MXN)</span><input type="number" inputmode="decimal" step="0.01" min="0" name="monto" required value="${f?f.monto:''}" placeholder="500"></label>
+      <label class="field"><span>Día de pago (1-31)</span><input type="number" inputmode="numeric" min="1" max="31" name="dia" required value="${f?f.dia:1}"></label>
+    </div>
+    <div class="field" style="margin-bottom:0"><span>Icono</span></div>
+    <div class="emopick">${EMS_FIJO.map((e,i)=>`<label><input type="radio" name="em" value="${e}" ${(f?f.em===e:i===0)?'checked':''}><span>${e}</span></label>`).join('')}</div>
+    <div class="btns">${f?'<button type="button" class="btn alt" style="color:var(--tomato)" data-act="delFijo" data-id="'+f.id+'">Borrar</button>':''}<button type="button" class="btn alt" data-act="close">Cancelar</button><button class="btn red">Guardar</button></div>
+  </form>`);
+  $('#fFijo').onsubmit=e=>{
+    e.preventDefault();const d=new FormData(e.target);
+    const n=(d.get('n')||'').trim(),monto=parseFloat(d.get('monto')),dia=Math.min(31,Math.max(1,Math.round(+d.get('dia')||1)));
+    if(!n||!(monto>=0))return;
+    if(f){Object.assign(f,{n,monto,dia,em:d.get('em')})}
+    else S.fijos.push({id:uid(),n,monto,dia,em:d.get('em')||'🧾',pagos:{}});
+    persist();closeModal();render();toast('Guardado');
+  };
+}
+function temaInner(){
+  const ac=S.acento||(getComputedStyle(document.documentElement).getPropertyValue('--tomato').trim());
+  return `<div class="tgrid">${Object.entries(TEMAS).map(([k,t])=>`<button class="tcard ${S.tema===k?'on':''}" data-act="setTema" data-id="${k}"><span class="tpv" style="background:${t.pv}"></span><span>${t.em} ${t.n}</span></button>`).join('')}</div>
+  <label class="field"><span>Opacidad de las tarjetas · <b id="opacVal">${S.opac}%</b> (menos = más transparente)</span><input type="range" class="range" min="25" max="100" value="${S.opac}" id="aOpac"></label>
+  <div class="field"><span>Color de acento</span><div class="row"><input type="color" id="aAcento" value="${/^#[0-9a-f]{6}$/i.test(ac)?ac:'#D9472B'}" style="width:60px;height:42px;padding:2px;border:0;background:none"><button class="btn sm alt" data-act="resetAcento">Usar el del tema</button></div></div>`;
+}
+function refrescaTemas(){document.querySelectorAll('.temaBox').forEach(b=>b.innerHTML=temaInner())}
+
+function vAjustes(){
+  return `
+  <div class="sec-title"><h2>Ajustes</h2><a class="small ext" href="#inicio">Listo</a></div>
+  <div class="sec-title"><h2>Tema y apariencia</h2></div>
+  <div class="card"><div class="temaBox">${temaInner()}</div></div>
+  <div class="card">
+    <div class="grid2">
+      <label class="field"><span>Presupuesto mensual (MXN)</span><input type="number" inputmode="decimal" min="0" id="aPres" value="${+S.presupuesto||0}"></label>
+      <label class="field"><span>Personas en casa</span><input type="number" inputmode="numeric" min="1" max="12" id="aPers" value="${+S.personas||1}"></label>
+    </div>
+    <p class="small muted" style="margin:0">Las recetas y la lista se calculan para este número de personas.</p>
+  </div>
+  <div class="sec-title"><h2>Precios y tiendas</h2><button class="btn sm alt" data-act="resetPrecios">Restablecer</button></div>
+  <div class="card">
+    <p class="small muted" style="margin-top:0">Precios de referencia estimados. Actualízalos con tu ticket de 3B o del mercado para que el menú y la lista calculen bien.</p>
+    ${PRODUCTOS.map(p=>`<div class="prod"><div><b>${esc(p.n)}</b><div class="tiny muted">${esc(p.pres)}</div></div>
+      <input type="number" inputmode="decimal" step="0.5" min="0" data-precio="${p.id}" value="${precio(p.id)}" aria-label="Precio ${esc(p.n)}">
+      <select data-tienda="${p.id}" aria-label="Tienda ${esc(p.n)}">${TIENDAS.map(t=>`<option ${tienda(p.id)===t?'selected':''}>${t}</option>`).join('')}</select></div>`).join('')}
+  </div>
+  <div class="sec-title"><h2>Respaldo</h2></div>
+  <div class="card">
+    <p class="small muted" style="margin-top:0">Tus datos se guardan en tu cuenta de Claude y se ven en cualquier dispositivo donde abras esta página. Puedes copiar un respaldo por si acaso.</p>
+    <div class="btns"><button class="btn sm alt" data-act="copiar">Copiar respaldo</button><button class="btn sm alt" data-act="importar">Restaurar</button></div>
+    <button class="btn sm alt block" style="margin-top:8px;color:var(--tomato)" data-act="borrarTodo">Borrar todos mis datos</button>
+  </div>`;
+}
+
+/* ===================== MODALES ===================== */
+function openModal(html){$('#sheet').innerHTML='<div class="grab"></div>'+html;$('#modal').classList.add('open')}
+function closeModal(){$('#modal').classList.remove('open');$('#sheet').innerHTML=''}
+$('#modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal()});
+function confirmar(titulo,texto,okTxt,fn){
+  openModal(`<h2>${titulo}</h2><p class="muted">${texto}</p><div class="btns"><button class="btn alt" data-act="close">Cancelar</button><button class="btn red" id="okBtn">${okTxt}</button></div>`);
+  $('#okBtn').onclick=()=>{closeModal();fn()};
+}
+
+function modalGasto(pre={}){
+  openModal(`<h2>${pre.titulo||'Nuevo gasto'}</h2>
+  <form id="fGasto">
+    <label class="field"><span>Monto (MXN)</span><input type="number" inputmode="decimal" step="0.01" min="0" name="monto" required value="${pre.monto!=null?pre.monto.toFixed(2):''}" placeholder="0.00"></label>
+    <div class="grid2">
+      <label class="field"><span>Fecha</span><input type="date" name="fecha" value="${hoy()}" required></label>
+      <label class="field"><span>Categoría</span><select name="cat">${Object.entries(CATS).map(([k,[e,l]])=>`<option value="${k}" ${pre.cat===k?'selected':''}>${e} ${l}</option>`).join('')}</select></label>
+    </div>
+    <label class="field"><span>Tienda</span><input name="tienda" list="dlT" value="${esc(pre.tienda||'')}" placeholder="3B, mercado…"><datalist id="dlT"><option>Tiendas 3B</option><option>Mercado</option><option>Tortillería</option><option>Bodega Aurrera</option><option>Oxxo</option><option>Panadería</option></datalist></label>
+    <label class="field"><span>Nota (opcional)</span><input name="nota" value="${esc(pre.nota||'')}" placeholder="Despensa semanal"></label>
+    ${pre.desdeLista?`<label class="row small" style="margin:6px 0 12px"><input type="checkbox" class="check" name="limpiar" checked> Quitar de la lista los artículos comprados</label>`:''}
+    <div class="btns"><button type="button" class="btn alt" data-act="close">Cancelar</button><button class="btn red">Guardar</button></div>
+  </form>`);
+  setTimeout(()=>{const i=$('#fGasto [name=monto]');if(i&&!pre.monto)i.focus()},50);
+  $('#fGasto').onsubmit=e=>{
+    e.preventDefault();const f=new FormData(e.target);
+    const monto=parseFloat(f.get('monto'));if(!(monto>0))return;
+    S.gastos.push({id:uid(),fecha:f.get('fecha'),monto:Math.round(monto*100)/100,cat:f.get('cat'),tienda:(f.get('tienda')||'').trim(),nota:(f.get('nota')||'').trim(),creado:Date.now()});
+    if(pre.desdeLista&&f.get('limpiar'))S.lista=S.lista.filter(i=>!i.hecho);
+    persist();closeModal();render();toast('Gasto registrado');
+  };
+}
+
+function modalPicker(dia,tipo){
+  const actual=(S.menu[dia]||{})[tipo];
+  const opts=RECETAS.filter(r=>r.tipo.includes(tipo)).sort((a,b)=>costoReceta(a)-costoReceta(b));
+  const otras=RECETAS.filter(r=>!r.tipo.includes(tipo));
+  const row=r=>`<button class="pick" data-act="setSlot" data-dia="${dia}" data-tipo="${tipo}" data-id="${r.id}"><span class="em">${r.em}</span><span><b>${esc(r.n)}</b>${actual===r.id?' <span class="badge">Elegida</span>':''}<div class="small muted">⏱ ${r.min} min</div></span><span class="cost">${money(costoReceta(r))}</span></button>`;
+  openModal(`<h2>${TIPOS[tipo]} · ${DIAS.find(d=>d[0]===dia)[1]}</h2><p class="small muted" style="margin-top:0">Ordenadas de la más barata a la más cara.</p>
+    ${opts.map(row).join('')}
+    <details style="margin-top:10px"><summary class="small muted" style="cursor:pointer;padding:8px 0">Otras recetas</summary>${otras.map(row).join('')}</details>
+    <div class="btns" style="margin-top:12px">${actual?`<button class="btn alt" data-act="verReceta" data-id="${actual}">Ver receta</button><button class="btn alt" data-act="setSlot" data-dia="${dia}" data-tipo="${tipo}" data-id="">Quitar</button>`:''}<button class="btn alt" data-act="close">Cerrar</button></div>`);
+}
+
+function modalReceta(id){
+  const r=R[id];if(!r)return;const f=factor();
+  openModal(`<div class="row"><span style="font-size:44px">${r.em}</span><div><h2>${esc(r.n)}</h2><div class="small muted">⏱ ${r.min} min · ${r.tipo.map(t=>TIPOS[t]).join(', ')}</div></div></div>
+  <div class="stats" style="grid-template-columns:1fr 1fr;margin-top:12px"><div class="stat"><span class="tiny muted">Costo para ${S.personas}</span><b>${money(costoReceta(r))}</b></div><div class="stat"><span class="tiny muted">Por porción</span><b>${money(costoReceta(r)/Math.max(1,S.personas))}</b></div></div>
+  <h3 style="margin-top:16px;font-size:16px">Ingredientes <span class="small muted" style="font-family:var(--fb);font-weight:500">(receta base para 4${S.personas!=4?`; ajusta ×${f.toFixed(2).replace(/\.?0+$/,'')}`:''})</span></h3>
+  <ul class="ing">${r.ing.map(([p,q,t])=>`<li><span>${esc(t)}</span><span class="muted small">${esc(PROD[p].n)} · ${money(q*precio(p)*f)}</span></li>`).join('')}</ul>
+  <h3 style="margin-top:14px;font-size:16px">Preparación</h3>
+  <ol class="steps">${r.pasos.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>
+  <div class="btns" style="margin-top:12px"><button class="btn green" data-act="recetaALista" data-id="${r.id}">🛒 A la lista</button><button class="btn alt" data-act="close">Cerrar</button></div>`);
+}
+
+function modalItem(){
+  openModal(`<h2>Agregar a la lista</h2>
+  <form id="fItem">
+    <label class="field"><span>Producto</span><input name="nombre" list="dlP" required placeholder="Ej. Huevo blanco"><datalist id="dlP">${PRODUCTOS.map(p=>`<option value="${esc(p.n)}">`).join('')}</datalist></label>
+    <div class="grid2">
+      <label class="field"><span>Cantidad</span><input type="number" name="cant" min="1" step="1" value="1"></label>
+      <label class="field"><span>Precio c/u (opcional)</span><input type="number" inputmode="decimal" step="0.5" min="0" name="precio" placeholder="auto"></label>
+    </div>
+    <label class="field"><span>Tienda</span><select name="tienda"><option value="">Automática</option>${TIENDAS.map(t=>`<option>${t}</option>`).join('')}</select></label>
+    <div class="btns"><button type="button" class="btn alt" data-act="close">Cancelar</button><button class="btn red">Agregar</button></div>
+  </form>`);
+  setTimeout(()=>$('#fItem [name=nombre]')?.focus(),50);
+  $('#fItem').onsubmit=e=>{
+    e.preventDefault();const f=new FormData(e.target);const nombre=(f.get('nombre')||'').trim();if(!nombre)return;
+    const p=PRODUCTOS.find(x=>x.n.toLowerCase()===nombre.toLowerCase());
+    const pr=f.get('precio');
+    agregarItem({pid:p?p.id:null,nombre:p?p.n:nombre,pres:p?p.pres:'pza',cant:Math.max(1,+f.get('cant')||1),precio:pr!==''&&pr!=null?+pr:(p?precio(p.id):0),tienda:f.get('tienda')||(p?tienda(p.id):'Otra')});
+    persist();closeModal();render();toast('Agregado');
+  };
+}
+
+function modalGenerar(){
+  openModal(`<h2>Generar menú semanal</h2><p class="muted" style="margin-top:0">Llena los 7 días con desayuno, comida y cena. Puedes cambiar cualquier platillo después.</p>
+  <button class="pick" data-act="doGenerar" data-modo="eco"><span class="em">💰</span><span><b>Económico</b><div class="small muted">Prioriza las recetas más baratas</div></span></button>
+  <button class="pick" data-act="doGenerar" data-modo="var"><span class="em">🎲</span><span><b>Variado</b><div class="small muted">Mezcla de todas las recetas</div></span></button>
+  <button class="pick" data-act="doGenerar" data-modo="huecos"><span class="em">🧩</span><span><b>Solo llenar huecos</b><div class="small muted">Respeta lo que ya elegiste</div></span></button>
+  <button class="btn alt block" style="margin-top:12px" data-act="close">Cancelar</button>`);
+}
+
+/* ===================== ACCIONES ===================== */
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function generar(modo){
+  const nuevo=modo==='huecos'?JSON.parse(JSON.stringify(S.menu)):{};
+  for(const t in TIPOS){
+    let pool=RECETAS.filter(r=>r.tipo.includes(t));
+    if(modo==='eco'){pool=pool.sort((a,b)=>costoReceta(a)-costoReceta(b));pool=pool.slice(0,Math.max(3,Math.ceil(pool.length*.6)))}
+    let seq=shuffle(pool),k=0,prev=null;
+    for(const [d] of DIAS){
+      nuevo[d]=nuevo[d]||{};
+      if(modo==='huecos'&&nuevo[d][t]){prev=nuevo[d][t];continue}
+      if(k>=seq.length){seq=shuffle(pool);k=0}
+      let r=seq[k++];
+      if(r.id===prev&&pool.length>1){if(k>=seq.length){seq=shuffle(pool);k=0}r=seq[k++]}
+      // evita repetir el mismo platillo en comida y cena del mismo día
+      if(t==='n'&&nuevo[d].c===r.id&&pool.length>1){if(k>=seq.length){seq=shuffle(pool);k=0}r=seq[k++]}
+      nuevo[d][t]=r.id;prev=r.id;
+    }
+  }
+  S.menu=nuevo;persist();closeModal();render();toast('Menú listo');
+}
+function necesidades(recetas){
+  const tot={};recetas.forEach(r=>r.ing.forEach(([p,q])=>tot[p]=(tot[p]||0)+q*factor()));
+  return tot;
+}
+function itemDesdeProducto(pid,qty){
+  const p=PROD[pid];return {pid,nombre:p.n,pres:p.pres,cant:Math.max(1,Math.ceil(qty-0.05)),precio:precio(pid),tienda:tienda(pid)};
+}
+function agregarItem(it){
+  const ex=it.pid&&S.lista.find(i=>i.pid===it.pid&&!i.hecho);
+  if(ex){ex.cant=(+ex.cant||0)+it.cant;return}
+  S.lista.push(Object.assign({id:uid(),hecho:false},it));
+}
+function listaDesdeMenu(){
+  const recs=[];for(const [d] of DIAS){const m=S.menu[d]||{};for(const t in TIPOS)if(m[t]&&R[m[t]])recs.push(R[m[t]])}
+  if(!recs.length){toast('Primero arma tu menú');location.hash='#menu';return}
+  const hacer=()=>{
+    S.lista=S.lista.filter(i=>!i.auto);
+    const tot=necesidades(recs);
+    Object.entries(tot).forEach(([pid,q])=>{if(PROD[pid])agregarItem(Object.assign(itemDesdeProducto(pid,q),{auto:true}))});
+    persist();render();location.hash='#lista';toast(`Lista creada con ${Object.keys(tot).length} productos`);
+  };
+  if(S.lista.some(i=>i.auto))confirmar('¿Rehacer la lista?','Se reemplazarán los productos que vinieron del menú. Lo que agregaste a mano se queda.','Rehacer',hacer);
+  else hacer();
+}
+
+document.addEventListener('click',e=>{
+  const go=e.target.closest('[data-go]');if(go){location.hash='#'+go.dataset.go;return}
+  const el=e.target.closest('[data-act]');if(!el)return;
+  const a=el.dataset.act,id=el.dataset.id;
+  switch(a){
+    case 'close':closeModal();break;
+    case 'temas':openModal(`<h2>Tema y apariencia</h2><div class="temaBox">${temaInner()}</div><button class="btn alt block" data-act="close">Listo</button>`);break;
+    case 'setTema':S.tema=id;aplicarTema();persist();refrescaTemas();break;
+    case 'resetAcento':S.acento=null;aplicarTema();persist();refrescaTemas();break;
+    case 'nuevoFijo':modalFijo();break;
+    case 'editFijo':modalFijo(id);break;
+    case 'delFijo':confirmar('¿Borrar este gasto mensual?','Se quitará de tu planeación.','Borrar',()=>{S.fijos=S.fijos.filter(x=>x.id!==id);persist();render()});break;
+    case 'togglePago':{const f=S.fijos.find(x=>x.id===id);if(f){f.pagos=f.pagos||{};if(el.checked)f.pagos[mesFijos]=true;else delete f.pagos[mesFijos];persist();render()}break}
+    case 'mesF':{const [y,mo]=mesFijos.split('-').map(Number);const d=new Date(y,mo-1+(+el.dataset.d),1);mesFijos=d.getFullYear()+'-'+pad(d.getMonth()+1);render();break}
+    case 'nuevoGasto':modalGasto();break;
+    case 'editPres':location.hash='#ajustes';break;
+    case 'pickSlot':modalPicker(el.dataset.dia,el.dataset.tipo);break;
+    case 'setSlot':{const d=el.dataset.dia,t=el.dataset.tipo;S.menu[d]=S.menu[d]||{};if(id)S.menu[d][t]=id;else delete S.menu[d][t];persist();closeModal();render();break}
+    case 'verReceta':modalReceta(id);break;
+    case 'recetaALista':{const tot=necesidades([R[id]]);Object.entries(tot).forEach(([p,q])=>agregarItem(itemDesdeProducto(p,q)));persist();closeModal();render();toast('Ingredientes agregados a la lista');break}
+    case 'generar':modalGenerar();break;
+    case 'doGenerar':generar(el.dataset.modo);break;
+    case 'limpiarMenu':confirmar('¿Vaciar el menú?','Se quitarán todos los platillos de la semana.','Vaciar',()=>{S.menu={};persist();render()});break;
+    case 'listaDesdeMenu':listaDesdeMenu();break;
+    case 'filtro':filtroTipo=el.dataset.k;render();break;
+    case 'baratas':{const r=RECETAS.slice().sort((a,b)=>costoReceta(a)-costoReceta(b)).slice(0,6);openModal(`<h2>Las 6 más baratas</h2>${r.map(x=>`<button class="pick" data-act="verReceta" data-id="${x.id}"><span class="em">${x.em}</span><b>${esc(x.n)}</b><span class="cost">${money(costoReceta(x))}</span></button>`).join('')}<button class="btn alt block" style="margin-top:12px" data-act="close">Cerrar</button>`);break}
+    case 'toggle':{const i=S.lista.find(x=>x.id===id);if(i){i.hecho=el.checked;persist();render()}break}
+    case 'mas':case 'menos':{const i=S.lista.find(x=>x.id===id);if(i){i.cant=Math.max(1,(+i.cant||1)+(a==='mas'?1:-1));persist();render()}break}
+    case 'delItem':S.lista=S.lista.filter(x=>x.id!==id);persist();render();break;
+    case 'nuevoItem':modalItem();break;
+    case 'limpiarHechos':S.lista=S.lista.filter(i=>!i.hecho);persist();render();break;
+    case 'registrarCompra':{const d=S.lista.filter(i=>i.hecho);const total=d.reduce((s,i)=>s+itemCost(i),0);
+      const cnt={};d.forEach(i=>cnt[i.tienda]=(cnt[i.tienda]||0)+itemCost(i));const top=Object.entries(cnt).sort((a,b)=>b[1]-a[1])[0];
+      const t=top?top[0]:'';modalGasto({titulo:'Registrar compra',monto:total,tienda:t==='3B'?'Tiendas 3B':t,cat:t==='Mercado'?'mercado':t==='Tortillería'?'tortilla':'super',nota:`${d.length} artículos de la lista`,desdeLista:true});
+      setTimeout(()=>{const p=document.createElement('p');p.className='small muted';p.textContent='Es un estimado: corrige el monto con lo que marcó tu ticket.';$('#fGasto')?.prepend(p)},0);break}
+    case 'delGasto':confirmar('¿Borrar gasto?','Esta acción no se puede deshacer.','Borrar',()=>{S.gastos=S.gastos.filter(g=>g.id!==id);persist();render()});break;
+    case 'mes':{const [y,m]=mesVista.split('-').map(Number);const d=new Date(y,m-1+(+el.dataset.d),1);mesVista=d.getFullYear()+'-'+pad(d.getMonth()+1);render();break}
+    case 'resetPrecios':confirmar('¿Restablecer precios?','Volverán los precios de referencia originales.','Restablecer',()=>{S.precios={};persist();render()});break;
+    case 'copiar':{const txt=JSON.stringify(S);navigator.clipboard.writeText(txt).then(()=>toast('Respaldo copiado'),()=>{openModal(`<h2>Respaldo</h2><p class="small muted">Copia este texto y guárdalo:</p><textarea class="search" readonly style="height:180px">${esc(txt)}</textarea><button class="btn alt block" data-act="close">Cerrar</button>`)});break}
+    case 'importar':openModal(`<h2>Restaurar respaldo</h2><p class="small muted">Pega el texto del respaldo. Reemplazará tus datos actuales.</p><textarea class="search" id="impTxt" style="height:160px"></textarea><div class="btns" style="margin-top:10px"><button class="btn alt" data-act="close">Cancelar</button><button class="btn red" id="impOk">Restaurar</button></div>`);
+      $('#impOk').onclick=()=>{try{const o=JSON.parse($('#impTxt').value);if(typeof o!=='object'||!o)throw 0;S=merge(o);persist();closeModal();render();toast('Datos restaurados')}catch(err){toast('El texto no es un respaldo válido')}};break;
+    case 'borrarTodo':confirmar('¿Borrar todo?','Se borrarán gastos, menú, lista y precios.','Borrar todo',()=>{S=defState();persist();render();toast('Datos borrados')});break;
+  }
+});
+document.addEventListener('input',e=>{
+  if(e.target.id==='aOpac'){S.opac=+e.target.value;aplicarTema();persist();const v=$('#opacVal');if(v)v.textContent=S.opac+'%';return}
+  if(e.target.id==='aAcento'){S.acento=e.target.value;aplicarTema();persist();return}
+  if(e.target.id==='busca'){busca=e.target.value;const pos=e.target.selectionStart;render();const b=$('#busca');b.focus();b.setSelectionRange(pos,pos)}
+});
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.id==='aPres'){S.presupuesto=Math.max(0,+t.value||0);persist();toast('Presupuesto actualizado')}
+  else if(t.id==='aPers'){S.personas=Math.min(12,Math.max(1,Math.round(+t.value||1)));t.value=S.personas;persist()}
+  else if(t.dataset.precio){const id=t.dataset.precio;S.precios[id]=Object.assign({},S.precios[id],{p:Math.max(0,+t.value||0)});S.lista.forEach(i=>{if(i.pid===id&&!i.hecho)i.precio=precio(id)});persist()}
+  else if(t.dataset.tienda){const id=t.dataset.tienda;S.precios[id]=Object.assign({},S.precios[id],{t:t.value});S.lista.forEach(i=>{if(i.pid===id&&!i.hecho)i.tienda=t.value});persist()}
+});
+
+function route(){
+  const h=(location.hash||'#inicio').slice(1);
+  tab=['inicio','menu','recetas','lista','gastos','fijos','ajustes'].includes(h)?h:'inicio';
+  closeModal();render();window.scrollTo(0,0);
+}
+window.addEventListener('hashchange',route);
+window.addEventListener('scroll',()=>$('#hdr').classList.toggle('scrolled',scrollY>4),{passive:true});
+route();
+initCloud();
+</script>
+</body>
+</html>
